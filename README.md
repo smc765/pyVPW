@@ -9,10 +9,13 @@ A Python library for SAE J1850-VPW communication with GM PCMs using ELM327 based
 - read and decode parameter values from dpid packets
 
 ### Todo
+- debug logging
 - setup bench pcm for testing
 - get VPWmessage object from bytes
 - vpw bus monitoring and logging
 - write to memory address
+- unlock pcm
+
 
 ### Disclaimer
 This project is still in the early stage of development and has not been throughly tested on real vehicles.
