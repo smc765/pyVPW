@@ -3,7 +3,7 @@ A Python library for SAE J1850-VPW communication with GM PCMs using ELM327 based
 
 ### Features
 - read mode $22 extended PIDs
-- create user-defined diagnostic data packets (dpid) combining up to 4 (i think) parameters into a single packet
+- create user-defined diagnostic data packets (dpid) combining up to 4 parameters into a single packet
 - define parameters by PID or memory address
 - generate request messages for parameters
 - read and decode parameter values from dpid packets
