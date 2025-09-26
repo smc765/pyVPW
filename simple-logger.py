@@ -12,8 +12,6 @@ BAUDRATE = 9600
 TIMEOUT = 1
 LOGFILE = 'log.csv'
 
-# this is really just a proof of concept. I know it's bad
-
 def main():
     dpid_params = [
         Parameter('ect', (0x00,0x05), 1), # ECT sensor
@@ -43,10 +41,7 @@ def main():
 
     # send DPID definition messages
     for msg in msg_q:
-        try:
-            elm.send_message(msg)
-        except Exception:
-            pass # ignore errors because i dont wanna write tests for this
+        elm.send_message(msg)
     
     # start logging
     with open(LOGFILE, 'w') as f:
@@ -59,7 +54,7 @@ def main():
                 row = []
                 row.append(time.time())
                 for dpid in dpids:
-                    res = elm.send_message(dpid.get_request())
+                    res = elm.send_message(dpid.get_request())[0]
                     for param in dpid.parameters:
                         data = dpid.get_param(res, param)
                         if param.decoder is None:
@@ -70,7 +65,6 @@ def main():
                 writer.writerow(row)
         except KeyboardInterrupt:
             pass
-        
 
 
 if __name__ == '__main__':

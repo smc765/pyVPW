@@ -1,6 +1,11 @@
 import serial
 from utils import *
-from queue import Queue
+from vpw import *
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(filename='device.log', filemode='w')
+logger.setLevel(logging.DEBUG)
 
 class ELM327:
     '''
@@ -33,12 +38,14 @@ class ELM327:
         if 'OK' not in lines: raise Exception('protocol not set')
 
         self.protocol = protocol
+        logger.debug(f'Protocol Set: {protocol}')
 
 
     def send_cmd(self, cmd: str, prompt_char=b'>') -> str:
         '''
         send a command and return list of response lines
         '''
+        logger.debug(f'TX: {cmd}')
         cmd = cmd + '\r'
         cmd = cmd.encode('ASCII')
 
@@ -46,6 +53,7 @@ class ELM327:
 
         # read from serial port until prompt char is recieved or timeout
         buf = self.port.read_until(prompt_char)
+        logger.debug(f'RX: {buf}')
         
         if len(buf) == 0:
             raise Exception('no data recieved')
@@ -66,38 +74,67 @@ class ELM327:
         if 'OK' not in lines: raise Exception('header not set')
 
         self.header = header
+        logger.debug(f'Header Set: {header}')
 
-    def send_message(self, message) -> bytes:
+    def send_message(self, message):
         '''
         send a VPWMessage
-        returns response data bytes
+        returns response VPWMessages
         '''
-        if self.header != message.header:
+        pass
+        if self.header!= message.header:
             self.set_header(message.header)
 
-        lines = self.send_cmd(message.hexstr)
+        lines = self.send_cmd(message.hex_str)
 
-        vpw_frames = []
+        vpw_messages = []
         for line in lines:
             if is_hex(line):
-                frame = bytes.fromhex(line)[3:] # convert to bytes and remove header bytes
+                frame = bytes.fromhex(line)
+            else:
+                logger.error(f'unexpected line: {line}')
+                continue
 
-                if frame[0] != (message.mode + 0x40): # response mode should = message mode + $40
-                    raise Exception(f'invalid frame: {line}')
+            if frame[3] != (message.mode + 0x40): raise Exception(f'unexpected mode: {frame[3]}')
 
-                vpw_frames.append(frame)
+            vpw_messages.append(
+                VPWMessage(
+                    frame[0], # priority byte
+                    frame[1], # target address (0xF1)
+                    frame[3], # mode
+                    frame[4:], # data
+                    source_addr = frame[2]
+                )
+            )
 
-        if len(vpw_frames) == 0:
-            raise Exception('no VPW frames in response')
+        return vpw_messages
 
-        if len(vpw_frames) > 1: # multiline response
-            data = []
-            for frame in vpw_frames:
-                data.append(frame)
+        # if self.header != message.header:
+        #     self.set_header(message.header)
+
+        # lines = self.send_cmd(message.hexstr)
+
+        # vpw_frames = []
+        # for line in lines:
+        #     if is_hex(line):
+        #         frame = bytes.fromhex(line)[3:] # convert to bytes and remove header bytes
+
+        #         if frame[0] != (message.mode + 0x40): # response mode should = message mode + $40
+        #             raise Exception(f'invalid frame: {line}')
+
+        #         vpw_frames.append(frame)
+        #         logger.debug(f'Revieced VPW frame: {frame}')
+
+        # if len(vpw_frames) == 0:
+        #     raise Exception('no VPW frames in response')
+
+        # if len(vpw_frames) > 1: # multiline response
+        #     data = []
+        #     for frame in vpw_frames:
+        #         data.append(frame)
             
-        else:
-            data = vpw_frames[0][1:]
+        # else:
+        #     data = vpw_frames[0][1:]
 
-        # print(data.hex())
 
-        return data
+        # return data
