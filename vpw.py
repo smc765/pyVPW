@@ -104,9 +104,6 @@ class VPWMessage:
         self.mode = mode
         self.data = data
 
-        # physical address of scan tool. shouldn't need to change this
-        # self.source_addr = kwargs.pop('source_addr', 0xF1)
-
         # 3 byte header SAE J1278/1 section 5.4
         self.header = get_bytes(kwargs.pop(
             'header', (self.priority, self.target_addr, self.source_addr)))
