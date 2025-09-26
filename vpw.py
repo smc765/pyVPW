@@ -59,6 +59,7 @@ class Parameter():
     def get_request(self, **kwargs):
         priority = kwargs.pop('priority', PRIORITY['node2node'])
         target_addr = kwargs.pop('target_addr', 0x10) # physical address of PCM
+        source_addr = kwargs.pop('source_addr', 0xF1) # address of scan tool
         rate = kwargs.pop('rate', RATE['single_response'])
 
         if len(self.bytes) == 1:
@@ -75,25 +76,30 @@ class Parameter():
         request = VPWMessage(
             priority,
             target_addr,
+            source_addr,
             mode,
             data
         )
 
         return request
 
+    def __eq__(self, other):
+        return self.bytes == other.bytes
+
 
 class VPWMessage:
     '''
     SAE J1850-VPW message
     '''
-    def __init__(self, priority: int, target_addr: int, mode: int, data: bytes, **kwargs):
+    def __init__(self, priority: int, target_addr: int, source_addr: int, mode: int, data: bytes, **kwargs):
         self.priority = priority
         self.target_addr = target_addr
+        self.source_addr = source_addr
         self.mode = mode
         self.data = data
 
         # physical address of scan tool. shouldn't need to change this
-        self.source_addr = kwargs.pop('source_addr', 0xF1)
+        # self.source_addr = kwargs.pop('source_addr', 0xF1)
 
         # 3 byte header SAE J1278/1 section 5.4
         self.header = get_bytes(kwargs.pop(
@@ -136,28 +142,33 @@ class Dpid():
         '''
         priority = kwargs.pop('priority', PRIORITY['node2node'])
         target_addr = kwargs.pop('target_addr', 0x10) # physical address of PCM
+        source_addr = kwargs.pop('source_addr', 0xF1) # address of scan tool
         rate = kwargs.pop('rate', RATE['single_response'])
+        mode = 0x2A
 
         data = bytes((self.id, rate))
 
         request = VPWMessage(
             priority,
             target_addr,
-            0x2A, # mode $2A
+            source_addr,
+            mode,
             data
         )
 
         return request
 
-    def get_config(self, **kwargs):
+    def get_config(self, **kwargs) -> list[VPWMessage]:
         '''
         Generate list of configuration messages
         See SAE J2190 5.19.3
         '''
         priority = kwargs.pop('priority', PRIORITY['node2node'])
         target_addr = kwargs.pop('target_addr', 0x10)
+        source_addr = kwargs.pop('source_addr', 0xF1)
+        mode = 0x2C
 
-        config = []
+        config_messages = []
         start_byte = 0b001 # starting byte for data, where 001 is the first byte after the DPID #
 
         for param in self.parameters:
@@ -176,20 +187,21 @@ class Dpid():
             start_byte += param.n_bytes
 
             data = bytes((self.id, byte3, *param.bytes))
-            config.append(
+            config_messages.append(
                 VPWMessage(
                     priority,
                     target_addr,
-                    0x2C, # mode $2C
+                    source_addr,
+                    mode,
                     data
                 ))
 
-        return config
+        return config_messages
 
     def get_param(self, message, search_parameter):
         if message.data[0] != self.id: raise Exception(f'incorrect dpid: {message.data[0]}')
 
-        read = 0
+        read = 1
         for param in self.parameters:
             if param == search_parameter:
                 return message.data[read:read + param.n_bytes]

@@ -4,7 +4,7 @@ from vpw import *
 import logging
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(filename='device.log', filemode='w')
+logging.basicConfig(filename='debug.log', filemode='w')
 logger.setLevel(logging.DEBUG)
 
 class ELM327:
@@ -41,32 +41,27 @@ class ELM327:
         logger.debug(f'Protocol Set: {protocol}')
 
 
-    def send_cmd(self, cmd: str, prompt_char=b'>') -> str:
-        '''
-        send a command and return list of response lines
-        '''
+    def send_cmd(self, cmd: str, prompt_char=b'>') -> list[str]:
         logger.debug(f'TX: {cmd}')
         cmd = cmd + '\r'
         cmd = cmd.encode('ASCII')
-
         self.port.write(cmd)
 
         # read from serial port until prompt char is recieved or timeout
         buf = self.port.read_until(prompt_char)
         logger.debug(f'RX: {buf}')
         
-        if len(buf) == 0:
-            raise Exception('no data recieved')
+        if len(buf) == 0: raise Exception('no data recieved')
 
         # remove prompt char
         if buf.endswith(prompt_char):
             buf = buf[:-1]
 
         string = buf.decode('ASCII')
-
         lines = [i.strip() for i in string.split('\r') if len(i) != 0] # seperate lines, strip whitespace, and remove empty lines
 
         return lines
+
 
     def set_header(self, header: bytes):
         lines = self.send_cmd(f'ATSH {header.hex()}')
@@ -76,35 +71,45 @@ class ELM327:
         self.header = header
         logger.debug(f'Header Set: {header}')
 
-    def send_message(self, message):
-        '''
-        send a VPWMessage
-        returns response VPWMessages
-        '''
-        pass
+
+    def send_message(self, message: VPWMessage) -> VPWMessage:
         if self.header!= message.header:
             self.set_header(message.header)
 
-        lines = self.send_cmd(message.hex_str)
+        response_lines = self.send_cmd(message.hex_str)
+        data_frames = [bytes.fromhex(line) for line in response_lines if is_hex(line)] # filter non-hex lines
+        
+        if len(data_frames) == 0: raise Exception('no valid data frames recieved')
+        
+        # expected response values
+        priority = data_frames[0][0]
+        target_addr = message.source_addr
+        source_addr = message.target_addr
+        mode = (message.mode + 0x40)
 
-        vpw_messages = []
-        for line in lines:
-            if is_hex(line):
-                frame = bytes.fromhex(line)
-            else:
-                logger.error(f'unexpected line: {line}')
-                continue
+        # validate data frames
+        for frame in data_frames:
+            if frame[:3] != bytes((priority, target_addr, source_addr)): raise Exception(f'unexpected header in frame: {frame}')
+            if frame[3] != mode: raise Exception(f'unexpected mode in frame: {frame}')
+        
+        # multiline response (ELM327 Manual page 42)
+        if len(data_frames) > 1:
+            data = bytearray()
 
-            if frame[3] != (message.mode + 0x40): raise Exception(f'unexpected mode: {frame[3]}')
+            for i, frame in enumerate(data_frames, start=1):
+                if frame[4] != i: raise Exception(f'invalid multiline response in frame {frame}')
+                data.extend(frame[5:])
+                
+            if len(data) == 0: raise Exception('could not assemble multiline response')
 
-            vpw_messages.append(
-                VPWMessage(
-                    frame[0], # priority byte
-                    frame[1], # target address (0xF1)
-                    frame[3], # mode
-                    frame[4:], # data
-                    source_addr = frame[2]
-                )
-            )
+        # single line response
+        else:
+            data = data_frames[0][4:]
 
-        return vpw_messages
+        return VPWMessage(
+            priority,
+            target_addr,
+            source_addr,
+            mode,
+            data,
+        )

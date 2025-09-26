@@ -3,6 +3,7 @@ from vpw import *
 from decoders import *
 import time
 import csv
+import logging
 
 DPID_MAX = 4
 DPID_START = 0xA0
@@ -10,6 +11,10 @@ PORTNAME = 'COM4'
 BAUDRATE = 9600
 TIMEOUT = 1
 LOGFILE = 'log.csv'
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(filename='debug.log', filemode='w')
+logger.setLevel(logging.DEBUG)
 
 def main():
     dpid_params = [
@@ -32,30 +37,35 @@ def main():
         dpids.append(Dpid(n, group))
         n += 1
 
-    msg_q = [] # DPID config message queue
-    fields = [] # logging fields
+    # setup logging
+    config_messages = []
+    fields = ['time']
     for dpid in dpids:
         fields.extend([param.name for param in dpid.parameters])
-        msg_q.extend(dpid.get_config())
+        config_messages.extend(dpid.get_config())
 
-    # send DPID definition messages
-    for msg in msg_q:
-        elm.send_message(msg)
+    # send config messages
+    for message in config_messages:
+        try:
+            elm.send_message(message)
+        except Exception as e:
+            # log and ignore errors because I haven't written tests for this message type yet
+            logger.error(e)
+            continue
     
     # start logging
     with open(LOGFILE, 'w') as f:
         writer = csv.writer(f)
         writer.writerow(fields)
-
         print('logging started. press ctrl+c to stop')
         try:
             while True:
                 row = []
                 row.append(time.time())
                 for dpid in dpids:
-                    res = elm.send_message(dpid.get_request())[0]
+                    message = elm.send_message(dpid.get_request())
                     for param in dpid.parameters:
-                        data = dpid.get_param(res, param)
+                        data = dpid.get_param(message, param)
                         if param.decoder is None:
                             row.append(data.hex())
                         else:
