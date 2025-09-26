@@ -56,6 +56,12 @@ class Parameter():
     def __len__(self):
         return len(self.bytes)
 
+    def decode(self, data):
+        if self.decoder is None:
+            return data.hex()
+        
+        return self.decoder(data)
+
     def get_request(self, **kwargs):
         priority = kwargs.pop('priority', PRIORITY['node2node'])
         target_addr = kwargs.pop('target_addr', 0x10) # physical address of PCM
@@ -198,13 +204,14 @@ class Dpid():
 
         return config_messages
 
-    def get_param(self, message, search_parameter):
+    def get_param(self, message, search_parameter) -> int:
         if message.data[0] != self.id: raise Exception(f'incorrect dpid: {message.data[0]}')
 
         read = 1
         for param in self.parameters:
             if param == search_parameter:
-                return message.data[read:read + param.n_bytes]
+                return param.decode(message.data[read:read + param.n_bytes])
+                
             read += param.n_bytes
 
 
