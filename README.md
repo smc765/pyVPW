@@ -13,7 +13,7 @@ A Python library for SAE J1850-VPW communication with GM PCMs using ELM327 based
 - vpw bus monitoring and logging
 - write to memory address
 - unlock pcm
-
+- load parameters from config file
 
 ### Disclaimer
 This project is still in the early stage of development and has not been throughly tested on real vehicles.
