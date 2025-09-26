@@ -1,7 +1,6 @@
 from device import ELM327
 from vpw import *
 from decoders import *
-from queue import Queue
 import time
 import csv
 
