@@ -108,33 +108,3 @@ class ELM327:
             )
 
         return vpw_messages
-
-        # if self.header != message.header:
-        #     self.set_header(message.header)
-
-        # lines = self.send_cmd(message.hexstr)
-
-        # vpw_frames = []
-        # for line in lines:
-        #     if is_hex(line):
-        #         frame = bytes.fromhex(line)[3:] # convert to bytes and remove header bytes
-
-        #         if frame[0] != (message.mode + 0x40): # response mode should = message mode + $40
-        #             raise Exception(f'invalid frame: {line}')
-
-        #         vpw_frames.append(frame)
-        #         logger.debug(f'Revieced VPW frame: {frame}')
-
-        # if len(vpw_frames) == 0:
-        #     raise Exception('no VPW frames in response')
-
-        # if len(vpw_frames) > 1: # multiline response
-        #     data = []
-        #     for frame in vpw_frames:
-        #         data.append(frame)
-            
-        # else:
-        #     data = vpw_frames[0][1:]
-
-
-        # return data

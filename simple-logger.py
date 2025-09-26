@@ -69,12 +69,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
-# p1 = Parameter((0x01,0x04), 1) # pid
-# p2 = Parameter(0x32, 2) # offset
-# p3 = Parameter((0x24,0x81,0x70), 2) # memory address
-# dpid = Dpid(0x26, [p1,p2,p3]) # dpid $26
-# print(dpid.get_config())
-# print(p3.get_request())

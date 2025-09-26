@@ -186,20 +186,6 @@ class Dpid():
 
         return config
 
-    # def get_param(self, data: bytes, parameter) -> int:
-    #     '''
-    #     extract a parameter from response
-    #     todo: this should take a VPWMessage object as input instead of bytes
-    #     '''
-    #     if data[0] != self.id: raise Exception('this aint me')
-
-    #     read_byte = 1 # first data byte to read
-    #     for p in self.parameters:
-    #         if p == parameter: 
-    #             return data[read_byte:read_byte + p.n_bytes]
-
-    #         read_byte += p.n_bytes
-
     def get_param(self, message, search_parameter):
         if message.data[0] != self.id: raise Exception(f'incorrect dpid: {message.data[0]}')
 
