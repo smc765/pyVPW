@@ -201,15 +201,27 @@ class Dpid():
 
         return config_messages
 
-    def get_param(self, message, search_parameter) -> int:
+    def get_parameter(self, message, search_parameter) -> int:
         if message.data[0] != self.id: raise Exception(f'incorrect dpid: {message.data[0]}')
 
-        read = 1
+        read_byte = 1
         for param in self.parameters:
             if param == search_parameter:
-                return param.decode(message.data[read:read + param.n_bytes])
+                return param.decode(message.data[read_byte: read_byte + param.n_bytes])
                 
-            read += param.n_bytes
+            read_byte += param.n_bytes
+
+    def read_parameters(self, message) -> list[int]:
+        if message.data[0] != self.id: raise Exception(f'incorrect dpid: {message.data[0]}')
+
+        values = []
+        read_byte = 1
+        for param in self.parameters:
+            values.append(param.decode(message.data[read_byte: read_byte + param.n_bytes]))
+            read_byte += param.n_bytes
+
+        return values
+
 
 
 def main():

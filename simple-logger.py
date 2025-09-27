@@ -29,7 +29,7 @@ parameters = [
 elm = ELM327(PORTNAME, BAUDRATE, timeout=TIMEOUT)
 
 # generate DPIDS
-param_groups = [parameters[i:i + DPID_MAX] for i in range(0, len(parameters), DPID_MAX)] # split parameters into lists of size DPID_MAX
+param_groups = [parameters[i:i + DPID_MAX] for i in range(0, len(parameters), DPID_MAX)]
 dpids = [Dpid(i, params) for i, params in enumerate(param_groups, start=DPID_START)]
 
 # setup logging
@@ -41,8 +41,8 @@ for dpid in dpids:
         try:
             elm.send_message(message)
         except Exception as e:
-            logger.error(f'could not define DPID: {e}') # ignore errors because I haven't written tests yet
-            break
+            logger.error(f'could not define DPID: {e}') 
+            break # ignore errors because I haven't written tests yet
 
     fields.extend([param.name for param in dpid.parameters])
 
@@ -59,10 +59,8 @@ with open(LOGFILE, 'w') as f:
 
             for dpid in dpids:
                 message = elm.send_message(dpid.get_request())
+                row.extend(dpid.read_parameters(message))
 
-                for param in dpid.parameters:
-                    row.append(dpid.get_param(message, param))
-                
             writer.writerow(row)
 
         except KeyboardInterrupt:
