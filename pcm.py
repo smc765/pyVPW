@@ -12,10 +12,6 @@ class Pcm:
     P01 PCM specific functions
     '''
     def __init__(self, device, **kwargs):
-        self.address = PhysicalAddress.pcm
-        self.kernel_start = 0xFF8000
-        self.kernel_filename = 'Kernel-P01.bin'
-        self.flash_size = 512 * 1024 # 512 KiB
         self.device = device
 
     def unlock(self):

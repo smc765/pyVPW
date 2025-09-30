@@ -10,8 +10,6 @@ A Python library for SAE J1850-VPW communication with GM P01/512kb PCMs (99-03 L
 
 ### Todo
 - setup bench pcm for testing
-- security access mode ($27)
-- read/write data blocks (mode $3C/$3B)
 - load parameters from config file
 - vpw bus monitoring, logging and message filtering
 - data transfer (modes $34-$37)
