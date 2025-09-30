@@ -17,12 +17,12 @@ logging.basicConfig(filename='debug.log', filemode='w')
 logger.setLevel(logging.DEBUG)
 
 parameters = [
-    Parameter('ect', (0x00,0x05), 1, decoder=ect_c), # ECT sensor
     Parameter('rpm', (0x00,0x0C), 1, decoder=rpm), # RPM
     Parameter('map', (0x00,0x0B), 1, decoder=map_kpa), # MAP sensor
-    Parameter('timing', (0x00,0x0E), 1, decoder=timing_deg), # timing
     Parameter('maf', (0x12,0x50), 1, decoder=maf_hz), # MAF sensor frequency
     Parameter('wideband', (0x11,0x4B), 1, decoder=aem30_0300), # EGR sensor voltage (using this for AEM 30-0300)
+    Parameter('timing', (0x00,0x0E), 1, decoder=timing_deg), # timing
+    Parameter('ect', (0x00,0x05), 1, decoder=ect_c), # ECT sensor
 ]
 
 # initalize ELM327

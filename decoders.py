@@ -40,3 +40,25 @@ def maf_hz(data):
     PID S1250
     '''
     return data[0] * 2.048
+
+def tps(data):
+    '''
+    PID $0011
+    '''
+    return data[0] / 2.56
+
+def kph(data):
+    '''
+    PID $000D
+    '''
+    return data[0]
+
+def fuel_trim(data):
+    '''
+    LTFT bank 1 = $0007
+    LTFT bank 2 = $0009
+    STFT bank 1 = $0006
+    STFT bank 2 = $0008
+    '''
+    n = data[0]
+    return (y - 128) / 1.28
