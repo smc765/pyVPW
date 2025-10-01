@@ -16,12 +16,12 @@ A Python library for SAE J1850-VPW communication with GM P01/512kb PCMs (99-03 L
 
 ### References
 - [PCM Hammer](https://github.com/PcmHammer/PcmHammer) - Tools for reading, writing, and data logging from GM PCMs. Lots of great info here.
-- [pcmhacking.net](https://pcmhacking.net/forums/) - 
+- [pcmhacking.net](https://pcmhacking.net/forums/) - PCM Hacking forum
 - SAE J1850 - Describes message protocol
 - SAE J1979 - legislated diagnostic test modes ($01-0A)
 - SAE J2190 - non-legislated modes (Extended PIDs, DPIDs, reading/writing memory, etc.)
 - SAE J2178/1 - detailed header format and physical address assignments
-- SAE J2186 - Data link security
+- [GM SeedKey Algorithm Paper](https://ls1tech.com/forums/attachments/pcm-diagnostics-tuning/705619-inexpensive-opensource-flashing-read-100-working-gm-seedkey.doc) - Reverse engineered PCM unlock algorithm (author unknown)
 
 ### Disclaimer
 This project is still in the early stage of development and has not been throughly tested on real vehicles.

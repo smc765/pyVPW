@@ -3,10 +3,11 @@ from enum import IntEnum
 from utils import *
 
 class BlockId(IntEnum):
-    vin1 = 0x01
-    vin2 = 0x02
-    vin3 = 0x03
-    osid = 0x0A
+    vin1 = 0x01 # first 5 bytes
+    vin2 = 0x02 # next 6 bytes
+    vin3 = 0x03 # last 6 bytes
+    osid = 0x0A # operating system id
+    hwid = 0x04 # hardware id
 
 class Pcm:
     def __init__(self, device, pcm_type, **kwargs):
@@ -16,12 +17,11 @@ class Pcm:
         match pcm_type:
             case 'p01':
                 self.key_algorithm = [36, 20, 82, 1, 126, 56, 151, 42, 190, 56, 152, 212, 40]
-
             case 'p04':
                 self.key_algroithm = [4, 107, 80, 2, 126, 80, 210, 76, 5, 253, 152, 24, 203]
 
-    def get_key(self, seed: int, algorithm=self.key_algorithm) -> int:
-        key = seed
+    def get_key(self, seed: bytes, algorithm=self.key_algorithm) -> bytes:
+        key = int.from_bytes(seed)
 
         for i in range(1, 13, 3):
             high = algorithm[i+1]
@@ -61,7 +61,8 @@ class Pcm:
                 case _:
                     continue
 
-        return key & 0xFFFF
+        key = key & 0xFFFF
+        return key.to_bytes(2)
 
     def unlock(self):
         seed_request = VPWMessage(
@@ -74,10 +75,10 @@ class Pcm:
 
         seed_response = self.device.send_message(seed_request)
 
-        if seed_response.data[2] == 0x37: # already unlocked
+        if seed_response.data[1] == 0x37: # already unlocked
             return True
 
-        seed = int.from_bytes(seed_response.data[1:3])
+        seed = seed_response.data[1:3]
         key = self.get_key(seed)
 
         unlock_request = VPWMessage(
@@ -85,7 +86,7 @@ class Pcm:
             PhysicalAddress.pcm,
             PhysicalAddress.scantool,
             Mode.unlock,
-            bytes((0x02, *key.to_bytes(2))) # send key
+            bytes((0x02, *key)) # send key
         )
 
         unlock_response = self.device.send_message(unlock_request)
@@ -124,3 +125,21 @@ class Pcm:
             raise Exception('pcm not unlocked')
 
         if response.data[0] != block_id: raise Exception('unexpected block_id')
+
+    def get_osid(self) -> int:
+        osid_bytes = read_block(BlockId.osid)
+        return int.from_bytes(osid_bytes)
+
+    def get_vin(self) -> str:
+        vin1 = self.read_block(BlockId.vin1)
+        vin2 = self.read_block(BlockId.vin2)
+        vin3 = self.read_block(BlockId.vin3)
+        vin_bytes = bytes((*vin1, *vin2, *vin3))
+        return vin_bytes.decode('ASCII')
+
+    def write_vin(self, vin: str):
+        if len(vin != 17): raise ValueError('vin must be 17 characters')
+        vin_bytes = vin.encode('ASCII')
+        self.write_block(BlockId.vin1, vin_bytes[:5])
+        self.write_block(BlockId.vin2, vin_bytes[5:11])
+        self.write_block(BlockId.vin2, vin_bytes[11:])
