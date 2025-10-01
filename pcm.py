@@ -8,7 +8,7 @@ class BlockId(IntEnum):
     vin3 = 0x03
     osid = 0x0A
 
-class Vehicle:
+class Pcm:
     def __init__(self, device, pcm_type, **kwargs):
         self.device = device
         self.pcm_type = pcm_type
@@ -19,6 +19,49 @@ class Vehicle:
 
             case 'p04':
                 self.key_algroithm = [4, 107, 80, 2, 126, 80, 210, 76, 5, 253, 152, 24, 203]
+
+    def get_key(self, seed: int, algorithm=self.key_algorithm) -> int:
+        key = seed
+
+        for i in range(1, 13, 3):
+            high = algorithm[i+1]
+            low = algorithm[i+2]
+
+            match algorithm[i]:
+                case 0x14:
+                    # add HHLL
+                    key += high << 8 | low
+
+                case 0x2A:
+                    if high > low:
+                        key = ~key
+                    else:
+                        key = ~key + 1
+
+                case 0x4C:
+                    # rotate left by HH bits
+                    key = (key << high | key >> (16 - high)) & 0xFFFF
+
+                case 0x6B:
+                    # rotate right by LL bits
+                    key = (key >> low | key << (16 - low)) & 0xFFFF
+
+                case 0x7E:
+                    # swap bytes of key, if LL>HH add LLHH, else add HHLL
+                    key = (key & 0xFF) << 8 | (key & 0xFF00) >> 8
+                    if low > high:
+                        key += low << 8 | high
+                    else:
+                        key += high << 8 | low
+
+                case 0x98:
+                    # subtract HHLL
+                    key -= high << 8 | low
+
+                case _:
+                    continue
+
+        return key & 0xFFFF
 
     def unlock(self):
         seed_request = VPWMessage(
@@ -34,15 +77,15 @@ class Vehicle:
         if seed_response.data[2] == 0x37: # already unlocked
             return True
 
-        seed = seed_response.data[1:3]
-        key = get_key(seed, self.key_algorithm)
+        seed = int.from_bytes(seed_response.data[1:3])
+        key = self.get_key(seed)
 
         unlock_request = VPWMessage(
             Priority.node2node,
             PhysicalAddress.pcm,
             PhysicalAddress.scantool,
             Mode.unlock,
-            bytes((0x02, *key)) # send key
+            bytes((0x02, *key.to_bytes(2))) # send key
         )
 
         unlock_response = self.device.send_message(unlock_request)
@@ -62,6 +105,8 @@ class Vehicle:
         )
 
         response = self.device.send_message(read_request)
+        if responce.data[0] != block_id: raise Exception('unexpected block_id')
+
         return response.data[1:]
 
     def write_block(self, block_id: int, data: bytes):
@@ -78,4 +123,4 @@ class Vehicle:
         else:
             raise Exception('pcm not unlocked')
 
-        if response.data[0] != block_id: raise Exception('unexpected block_id in response')
+        if response.data[0] != block_id: raise Exception('unexpected block_id')
