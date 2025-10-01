@@ -7,7 +7,6 @@ class BlockId(IntEnum):
     vin2 = 0x02 # next 6 bytes
     vin3 = 0x03 # last 6 bytes
     osid = 0x0A # operating system id
-    hwid = 0x04 # hardware id
 
 class Pcm:
     def __init__(self, device, pcm_type, **kwargs):

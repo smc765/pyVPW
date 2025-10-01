@@ -54,9 +54,7 @@ class DataRate(IntEnum):
 
 class Parameter():
     '''
-    Diagnostic data parameter defined by:
-     - PID:            2 bytes
-     - Memory address: 3 bytes
+    Diagnostic data parameter defined by PID (2 bytes) or Memory Address (3 bytes)
     '''
     def __init__(self, name, parameter: int | tuple[int, ...] | bytes, n_bytes: int, **kwargs):
         self.bytes = get_bytes(parameter)
@@ -121,23 +119,17 @@ class VPWMessage:
 
         # construct message
         self.bytes = bytes((self.mode, *self.data))
-        self.hex_str = self.bytes.hex()
+        self.hexstr = self.bytes.hex()
     
     def __repr__(self):
         '''
-        return request as hex string
+        return message as hex string
         '''
-        return self.hex_str
-
-    def __bytes__(self):
-        '''
-        return request bytes
-        '''
-        return self.bytes
+        return self.hexstr
 
 class Dpid():
     '''
-    Diagnostic Data Packet (DPID)
+    Diagnostic Data Packet
     '''
     def __init__(self, dpid: int, parameters: list[Parameter, ...]):
         self.id = dpid
@@ -183,12 +175,8 @@ class Dpid():
         start_byte = 0b001 # starting byte for data, where 001 is the first byte after the DPID #
 
         for param in self.parameters:
-            # define by offset (1 byte)
-            if len(param) == 1:
-                byte3 = 0b00 << 6 | start_byte << 3 | param.n_bytes # [bits 7,6,5=param type][bits 4,3,2=start_byte][bits 2,1,0=n_bytes]
-
             # define by PID (2 bytes)
-            elif len(param) == 2:
+            if len(param) == 2:
                 byte3 = 0b01 << 6 | start_byte << 3 | param.n_bytes
 
             # define by memory address (3 bytes)

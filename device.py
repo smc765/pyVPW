@@ -31,7 +31,6 @@ class ELM327:
         self.send_command('AT H1') # display headers
         self.set_protocol(2) # protocol 2 = SAE J1850 VPW
 
-
     def set_protocol(self, protocol: int):
         lines = self.send_command(f'AT SP {protocol}')
 
@@ -39,7 +38,6 @@ class ELM327:
 
         self.protocol = protocol
         logger.debug(f'Protocol Set: {protocol}')
-
 
     def send_command(self, cmd: str, prompt_char=b'>') -> list[str]:
         logger.debug(f'TX: {cmd}')
@@ -60,8 +58,7 @@ class ELM327:
         string = buf.decode('ASCII')
         lines = [i.strip() for i in string.split('\r') if len(i) != 0] # seperate lines, strip whitespace, and remove empty lines
 
-        return lines
-
+        return lines    
 
     def set_header(self, header: bytes):
         lines = self.send_command(f'ATSH {header.hex()}')
@@ -71,45 +68,61 @@ class ELM327:
         self.header = header
         logger.debug(f'Header Set: {header}')
 
-
     def send_message(self, message: VPWMessage) -> VPWMessage:
         if self.header!= message.header:
             self.set_header(message.header)
 
-        response_lines = self.send_command(message.hex_str)
-        data_frames = [bytes.fromhex(line) for line in response_lines if is_hex(line)]
-        
+        response = self.send_command(message.hexstr)
+        data_frames = []
+
+        for line in response:
+            logger.debug(f'validating line: {line}')
+            try:
+                frame = bytes.fromhex(line)
+            except ValueError:
+                logger.error(f'line contains non-hex data')
+                continue
+
+            if frame[0] != message.priority:
+                logger.warning('unexpected priority')
+
+            if frame[1] != message.source_address:
+                logger.error('unexpected target address')
+                continue
+
+            if frame[2] != message.target_address:
+                logger.error('unexpected source address')
+                continue
+
+            if frame[3] != message.mode + 0x40:
+                logger.error('unexpected mode')
+                continue
+
+            if frame[4] != message.data[0]:
+                logger.error('unexpected request byte')
+                continue
+
+            data_frames.append(frame)
+
         if len(data_frames) == 0: raise Exception('no valid data received')
-        
-        # expected response values
-        priority = data_frames[0][0]
-        target_address = message.source_address
-        source_address = message.target_address
-        mode = (message.mode + 0x40)
 
-        # validate data frames
-        # probably not the ideal place for this
-        for frame in data_frames:
-            logger.debug(f'received data: {frame.hex()}')
-            if frame[:3] != bytes((priority, target_address, source_address)): raise Exception(f'unexpected header: {frame}')
-            if frame[3] != mode: raise Exception(f'unexpected mode: {frame}')
-        
-        # multiline response (ELM327 Manual page 42)
-        if len(data_frames) > 1:
-            data = bytearray()
-
-            for i, frame in enumerate(data_frames, start=1):
-                if frame[4] != i: raise Exception(f'multiline index error: {frame}')
-                data.extend(frame[5:])
-
-        # single line response
-        else:
+        if len(data_frames) == 1:
             data = data_frames[0][4:]
+ 
+        else: # multiline response
+            data = bytearray([data_frames[0][4]]) # request byte
+            for i, frame in enumerate(data_frames, start=1):
+                if frame[5] != i: 
+                    logger.error(f'multiline index error frame {i}')
+                    continue
+                data.extend(frame[6:])
+
+            if len(data) <= 1: raise Exception('could not assemble multiline response')
 
         return VPWMessage(
-            priority,
-            target_address,
-            source_address,
-            mode,
-            data,
+            data_frames[0][0],
+            data_frames[0][1],
+            data_frames[0][2],
+            data_frames[0][3],
+            data
         )
