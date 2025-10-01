@@ -88,6 +88,7 @@ class ELM327:
         mode = (message.mode + 0x40)
 
         # validate data frames
+        # probably not the ideal place for this
         for frame in data_frames:
             logger.debug(f'received data: {frame.hex()}')
             if frame[:3] != bytes((priority, target_address, source_address)): raise Exception(f'unexpected header: {frame}')

@@ -1,5 +1,6 @@
 from vpw import *
 from enum import IntEnum
+from utils import *
 
 class BlockId(IntEnum):
     vin1 = 0x01
@@ -7,12 +8,17 @@ class BlockId(IntEnum):
     vin3 = 0x03
     osid = 0x0A
 
-class Pcm:
-    '''
-    P01 PCM specific functions
-    '''
-    def __init__(self, device, **kwargs):
+class Vehicle:
+    def __init__(self, device, pcm_type, **kwargs):
         self.device = device
+        self.pcm_type = pcm_type
+
+        match pcm_type:
+            case 'p01':
+                self.key_algorithm = [36, 20, 82, 1, 126, 56, 151, 42, 190, 56, 152, 212, 40]
+
+            case 'p04':
+                self.key_algroithm = [4, 107, 80, 2, 126, 80, 210, 76, 5, 253, 152, 24, 203]
 
     def unlock(self):
         seed_request = VPWMessage(
@@ -29,8 +35,7 @@ class Pcm:
             return True
 
         seed = seed_response.data[1:3]
-        swap = seed[1] << 8 | seed[0] # swap bytes
-        key = (0x1934D - swap).to_bytes(3)[1:]
+        key = get_key(seed, self.key_algorithm)
 
         unlock_request = VPWMessage(
             Priority.node2node,

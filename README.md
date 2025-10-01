@@ -16,6 +16,7 @@ A Python library for SAE J1850-VPW communication with GM P01/512kb PCMs (99-03 L
 
 ### References
 - [PCM Hammer](https://github.com/PcmHammer/PcmHammer) - Tools for reading, writing, and data logging from GM PCMs. Lots of great info here.
+- [pcmhacking.net](https://pcmhacking.net/forums/) - 
 - SAE J1850 - Describes message protocol
 - SAE J1979 - legislated diagnostic test modes ($01-0A)
 - SAE J2190 - non-legislated modes (Extended PIDs, DPIDs, reading/writing memory, etc.)
