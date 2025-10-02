@@ -1,11 +1,13 @@
 import serial
-from utils import *
 from vpw import *
 import logging
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(filename='debug.log', filemode='w')
-logger.setLevel(logging.DEBUG)
+logging.basicConfig(
+    filename='debug.log',
+    filemode='w',
+    level=logging.DEBUG
+)
 
 class ELM327:
     '''
@@ -37,7 +39,7 @@ class ELM327:
         if 'OK' not in lines: raise Exception('protocol not set')
 
         self.protocol = protocol
-        logger.debug(f'Protocol Set: {protocol}')
+        logger.debug(f'protocol set: {protocol}')
 
     def send_command(self, cmd: str, prompt_char=b'>') -> list[str]:
         logger.debug(f'TX: {cmd}')
@@ -56,9 +58,9 @@ class ELM327:
             buf = buf[:-1]
 
         string = buf.decode('ASCII')
-        lines = [i.strip() for i in string.split('\r') if len(i) != 0] # seperate lines, strip whitespace, and remove empty lines
+        lines = [i.strip() for i in string.split('\r') if len(i) != 0] # seperate lines, strip whitespace, remove empty lines
 
-        return lines    
+        return lines
 
     def set_header(self, header: bytes):
         lines = self.send_command(f'ATSH {header.hex()}')
@@ -66,7 +68,7 @@ class ELM327:
         if 'OK' not in lines: raise Exception('header not set')
 
         self.header = header
-        logger.debug(f'Header Set: {header}')
+        logger.debug(f'header set: {header}')
 
     def send_message(self, message: VPWMessage) -> VPWMessage:
         if self.header!= message.header:
@@ -76,58 +78,48 @@ class ELM327:
         data_frames = []
 
         for line in response:
-            logger.debug(f'validating line: {line}')
             try:
                 frame = bytes.fromhex(line)
             except ValueError:
-                logger.error(f'line contains non-hex data')
-                continue
-
-            if frame[0] != message.priority:
-                logger.warning('unexpected priority')
-
-            if frame[1] != message.source_address:
-                logger.error('unexpected target address')
-                continue
-
-            if frame[2] != message.target_address:
-                logger.error('unexpected source address')
-                continue
-
-            if frame[3] != message.mode + 0x40:
-                logger.error('unexpected mode')
-                continue
-
-            if not frame[4:].startswith(message.request):
-                logger.error('unexpected request')
+                logger.error(f'received non-hex data: {line}')
                 continue
 
             data_frames.append(frame)
 
-        if len(data_frames) == 0: raise Exception('no valid data received')
+        if len(data_frames) == 0: raise Exception('no data')
 
-        r_bytes = len(message.request)
-        request = data_frames[0][4:4 + r_bytes]
-        data_start = 4 + r_bytes
+        data_start = 4 + len(message.request)
+        request = data_frames[0][4:data_start] 
 
         if len(data_frames) == 1:
             data = data_frames[0][data_start:]
  
         else: # multiline response
-            data = bytearray(request) # request byte
-            for i, frame in enumerate(data_frames, start=1):
-                if frame[data_start] != i: 
-                    logger.error(f'multiline index error frame {i}')
-                    continue
-                data.extend(frame[data_start + 1:])
+            data = bytearray(request)
+            i = 1 # data index starts at 1 per ELM327 docs
+            for frame in data_frames:
+                logger.debug(f'processing multiline data: frame={frame} index={i}')
 
-            if len(data) <= 1: raise Exception('could not assemble multiline response')
+                if not frame.startswith(data_frames[0][:data_start]):
+                    logger.error(f'invalid initial bytes')
+                    continue
+
+                if frame[data_start] != i: 
+                    logger.error('invalid index')
+                    continue
+
+                data.extend(frame[data_start + 1:])
+                i += 1
+
+            if len(data) <= len(request): raise Exception('could not assemble multiline response')
+
+        logger.debug(f'received data: {data.hex()}')
 
         return VPWMessage(
-            data_frames[0][0],
-            data_frames[0][1],
-            data_frames[0][2],
-            data_frames[0][3],
+            data_frames[0][0], # priority
+            data_frames[0][1], # target address
+            data_frames[0][2], # source address
+            data_frames[0][3], # mode
             request,
             data
         )

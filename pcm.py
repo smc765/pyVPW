@@ -1,9 +1,16 @@
 from vpw import *
 from enum import IntEnum
-from utils import *
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    filename='debug.log',
+    filemode='w',
+    level=logging.DEBUG
+)
 
 class BlockId(IntEnum):
-    vin1 = 0x01 # first 5 bytes
+    vin1 = 0x01 # 0x00, first 5 bytes
     vin2 = 0x02 # next 6 bytes
     vin3 = 0x03 # last 6 bytes
     osid = 0x0A # operating system id
@@ -74,10 +81,13 @@ class Pcm:
 
         seed_response = self.device.send_message(seed_request)
 
-        if seed_response.data[1] == 0x37: # already unlocked
-            return True
+        if not seed_request.validate_response(seed_response):
+            raise Exception('invalid seed response')
 
-        seed = seed_response.data[1:3]
+        if seed_response.data[0] == 0x37: # already unlocked
+            return
+
+        seed = seed_response.data
         key = self.get_key(seed)
 
         unlock_request = VPWMessage(
@@ -91,10 +101,24 @@ class Pcm:
 
         unlock_response = self.device.send_message(unlock_request)
 
-        if unlock_response.data[1] == 0x34: # success
-            return True
-        
-        return False
+        if not unlock_request.validate_response(unlock_response):
+            raise Exception('invalid unlock response')
+
+        match unlock_response.data[0]:
+            case 0x33: 
+                raise Exception('access denied')
+
+            case 0x34: # key accepted
+                return
+
+            case 0x35:
+                raise Exception('invalid key')
+            
+            case 0x36:
+                raise Exception('max attempts exceeded')
+
+            case 0x37:
+                raise Exception('time delay not expired')
 
     def read_block(self, block_id: int) -> bytes:
         read_request = VPWMessage(
@@ -106,9 +130,11 @@ class Pcm:
         )
 
         response = self.device.send_message(read_request)
-        if responce.data[0] != block_id: raise Exception('unexpected block_id')
 
-        return response.data[1:]
+        if not read_request.validate_response(read_request):
+            raise Exception('invalid response')
+
+        return response.data
 
     def write_block(self, block_id: int, data: bytes):
         write_request = VPWMessage(
@@ -119,11 +145,12 @@ class Pcm:
             block_id,
             data
         )
-        #todo: fix ts
-        if self.unlock():
-            response = self.device.send_message(write_request)
-        else:
-            raise Exception('pcm not unlocked')
+
+        self.unlock()
+        response = self.device.send_message(write_request)
+
+        if not write_request.validate_response(response):
+            raise Exception('invalid response')
 
     def get_osid(self) -> int:
         osid_bytes = read_block(BlockId.osid)
@@ -133,12 +160,12 @@ class Pcm:
         vin1 = self.read_block(BlockId.vin1)
         vin2 = self.read_block(BlockId.vin2)
         vin3 = self.read_block(BlockId.vin3)
-        vin_bytes = bytes((*vin1, *vin2, *vin3))
+        vin_bytes = bytes((*vin1[1:], *vin2, *vin3))
         return vin_bytes.decode('ASCII')
 
     def write_vin(self, vin: str):
         if len(vin != 17): raise ValueError('vin must be 17 characters')
         vin_bytes = vin.encode('ASCII')
-        self.write_block(BlockId.vin1, vin_bytes[:5])
+        self.write_block(BlockId.vin1, bytes((0x00, *vin_bytes[:5])))
         self.write_block(BlockId.vin2, vin_bytes[5:11])
         self.write_block(BlockId.vin2, vin_bytes[11:])

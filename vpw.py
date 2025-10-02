@@ -1,5 +1,13 @@
 from utils import *
 from enum import IntEnum
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    filename='debug.log',
+    filemode='w',
+    level=logging.DEBUG
+)
 
 class Priority(IntEnum):
     '''
@@ -45,8 +53,6 @@ class DataRate(IntEnum):
     Applies to modes $21-$23, $2A, and probably others
     '''
     single_response = 0x01
-
-    # not sure if GM uses these
     repeat_slow = 0x02
     repeat_medium = 0x03
     repeat_fast = 0x04
@@ -61,8 +67,8 @@ class VPWMessage:
         self.target_address = target_address
         self.source_address = source_address
         self.mode = mode
-        self.request = get_bytes(request)
-        self.data = get_bytes(data)
+        self.request = get_bytes(request) # request bytes expected in response
+        self.data = get_bytes(data) # data bytes or bytes that won't be in response
 
         # 3 byte header SAE J1278/1 section 5.4
         self.header = bytes((self.priority, self.target_address, self.source_address))
@@ -72,10 +78,33 @@ class VPWMessage:
         self.hexstr = self.bytes.hex()
     
     def __repr__(self):
-        '''
-        return message as hex string
-        '''
         return self.hexstr
+
+    # todo: this should return something to indicate what went wrong
+    def validate_response(self, message) -> bool:
+        logger.debug(f'validating response: {message.hexstr}')
+
+        if message.priority != self.priority:
+            logger.warning('unexpected priority')
+            # response priority doesn't have to match request
+
+        if message.target_address != self.source_address:
+            logger.error('unexpected target address')
+            return False
+
+        if message.source_address != self.target_address:
+            logger.error('unexpected source address')
+            return False
+        
+        if message.mode != self.mode + 0x40:
+            logger.error('unexpected mode')
+            return False
+
+        if message.request != self.request:
+            logger.error('unexpected request')
+            return False
+
+        return True
 
 class Parameter():
     '''
@@ -134,6 +163,7 @@ class Dpid():
     def __init__(self, dpid: int, parameters: list[Parameter, ...]):
         self.id = dpid
         self.parameters = parameters
+        self.request = self.get_request()
 
     def __index__(self):
         return self.id
@@ -197,31 +227,22 @@ class Dpid():
 
         return config_messages
 
-    def get_parameter(self, message, search_parameter):
-        if message.data[0] != self.id: raise Exception(f'incorrect dpid: {message.data[0]}')
-
-        read_byte = 1
-        for param in self.parameters:
-            if param == search_parameter:
-                return param.decode(message.data[read_byte: read_byte + param.n_bytes])
-                
-            read_byte += param.n_bytes
-
     def read_parameters(self, message) -> list[int]:
-        if message.request != bytes([self.id]): raise Exception(f'incorrect dpid: {message.request.hex()}')
+        if not self.request.validate_response(message):
+            raise Exception('invalid response message')
 
         values = []
-        read_byte = 1
+        read_byte = 0
         for param in self.parameters:
-            values.append(param.decode(message.data[read_byte: read_byte + param.n_bytes]))
+            data = message.data[read_byte: read_byte + param.n_bytes]
+            values.append(param.decode(data))
             read_byte += param.n_bytes
+            logger.debug(f'parameter={param.name} value={data.hex()}')
 
         return values
 
-
-def main():
-    pass
-
-
-if __name__ == '__main__':
-    main()
+    def read_parameter(self, message, search_parameter):
+        values = self.read_parameters(message)
+        for i, value in enumerate(values):
+            if self.parameters[i] == search_parameter:
+                return value

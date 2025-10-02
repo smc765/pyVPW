@@ -13,8 +13,11 @@ TIMEOUT = 1
 LOGFILE = 'log.csv'
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(filename='debug.log', filemode='w')
-logger.setLevel(logging.DEBUG)
+logging.basicConfig(
+    filename='debug.log',
+    filemode='w',
+    level=logging.DEBUG
+)
 
 parameters = [
     Parameter('rpm', (0x00,0x0C), 1, decoder=rpm), # RPM
@@ -58,8 +61,15 @@ with open(LOGFILE, 'w') as f:
             row = [time.time()]
 
             for dpid in dpids:
-                message = elm.send_message(dpid.get_request())
-                row.extend(dpid.read_parameters(message))
+                response = elm.send_message(dpid.request)
+
+                try:
+                    values = dpid.read_parameters(response)
+                except Exception as e:
+                    logger.error(e)
+                    break
+
+                row.extend(values)
 
             writer.writerow(row)
 
