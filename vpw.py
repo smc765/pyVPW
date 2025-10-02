@@ -52,6 +52,31 @@ class DataRate(IntEnum):
     repeat_fast = 0x04
     stop_transmission = 0x00
 
+class VPWMessage:
+    '''
+    SAE J1850-VPW message
+    '''
+    def __init__(self, priority: int, target_address: int, source_address: int, mode: int, request: bytes | int, data=b'', **kwargs):
+        self.priority = priority
+        self.target_address = target_address
+        self.source_address = source_address
+        self.mode = mode
+        self.request = get_bytes(request)
+        self.data = get_bytes(data)
+
+        # 3 byte header SAE J1278/1 section 5.4
+        self.header = bytes((self.priority, self.target_address, self.source_address))
+
+        # construct message
+        self.bytes = bytes((self.mode, *self.request, *self.data))
+        self.hexstr = self.bytes.hex()
+    
+    def __repr__(self):
+        '''
+        return message as hex string
+        '''
+        return self.hexstr
+
 class Parameter():
     '''
     Diagnostic data parameter defined by PID (2 bytes) or Memory Address (3 bytes)
@@ -88,44 +113,19 @@ class Parameter():
         elif len(self.bytes) == 3:
             mode = Mode.get_address
 
-        data = bytes((*self.bytes, rate))
-
-        request = VPWMessage(
+        message = VPWMessage(
             priority,
             target_address,
             source_address,
             mode,
-            data
+            self.bytes,
+            rate
         )
 
-        return request
+        return message
 
     def __eq__(self, other):
         return self.bytes == other.bytes
-
-class VPWMessage:
-    '''
-    SAE J1850-VPW message
-    '''
-    def __init__(self, priority: int, target_address: int, source_address: int, mode: int, data: bytes, **kwargs):
-        self.priority = priority
-        self.target_address = target_address
-        self.source_address = source_address
-        self.mode = mode
-        self.data = data
-
-        # 3 byte header SAE J1278/1 section 5.4
-        self.header = bytes((self.priority, self.target_address, self.source_address))
-
-        # construct message
-        self.bytes = bytes((self.mode, *self.data))
-        self.hexstr = self.bytes.hex()
-    
-    def __repr__(self):
-        '''
-        return message as hex string
-        '''
-        return self.hexstr
 
 class Dpid():
     '''
@@ -150,14 +150,13 @@ class Dpid():
         source_address = kwargs.pop('source_address', PhysicalAddress.scantool)
         rate = kwargs.pop('rate', DataRate.single_response)
 
-        data = bytes((self.id, rate))
-
         request = VPWMessage(
             priority,
             target_address,
             source_address,
             Mode.dpid_request,
-            data
+            self.id,
+            rate
         )
 
         return request
@@ -185,13 +184,14 @@ class Dpid():
             
             start_byte += param.n_bytes
 
-            data = bytes((self.id, byte3, *param.bytes))
+            data = bytes((byte3, *param.bytes))
             config_messages.append(
                 VPWMessage(
                     priority,
                     target_address,
                     source_address,
                     Mode.dpid_config,
+                    self.id,
                     data
                 ))
 
@@ -208,7 +208,7 @@ class Dpid():
             read_byte += param.n_bytes
 
     def read_parameters(self, message) -> list[int]:
-        if message.data[0] != self.id: raise Exception(f'incorrect dpid: {message.data[0]}')
+        if message.request != bytes([self.id]): raise Exception(f'incorrect dpid: {message.request.hex()}')
 
         values = []
         read_byte = 1

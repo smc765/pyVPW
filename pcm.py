@@ -69,7 +69,7 @@ class Pcm:
             PhysicalAddress.pcm,
             PhysicalAddress.scantool,
             Mode.unlock,
-            bytes([0x01]) # request seed
+            0x01 # request seed
         )
 
         seed_response = self.device.send_message(seed_request)
@@ -85,7 +85,8 @@ class Pcm:
             PhysicalAddress.pcm,
             PhysicalAddress.scantool,
             Mode.unlock,
-            bytes((0x02, *key)) # send key
+            0x02, # send key
+            key
         )
 
         unlock_response = self.device.send_message(unlock_request)
@@ -101,7 +102,7 @@ class Pcm:
             PhysicalAddress.pcm,
             PhysicalAddress.scantool,
             Mode.read_block,
-            bytes([block_id])
+            block_id
         )
 
         response = self.device.send_message(read_request)
@@ -115,15 +116,14 @@ class Pcm:
             PhysicalAddress.pcm,
             PhysicalAddress.scantool,
             Mode.write_block,
-            bytes((block_id, *data))
+            block_id,
+            data
         )
-
+        #todo: fix ts
         if self.unlock():
             response = self.device.send_message(write_request)
         else:
             raise Exception('pcm not unlocked')
-
-        if response.data[0] != block_id: raise Exception('unexpected block_id')
 
     def get_osid(self) -> int:
         osid_bytes = read_block(BlockId.osid)

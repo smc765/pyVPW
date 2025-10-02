@@ -98,24 +98,28 @@ class ELM327:
                 logger.error('unexpected mode')
                 continue
 
-            if frame[4] != message.data[0]:
-                logger.error('unexpected request byte')
+            if not frame[4:].startswith(message.request):
+                logger.error('unexpected request')
                 continue
 
             data_frames.append(frame)
 
         if len(data_frames) == 0: raise Exception('no valid data received')
 
+        r_bytes = len(message.request)
+        request = data_frames[0][4:4 + r_bytes]
+        data_start = 4 + r_bytes
+
         if len(data_frames) == 1:
-            data = data_frames[0][4:]
+            data = data_frames[0][data_start:]
  
         else: # multiline response
-            data = bytearray([data_frames[0][4]]) # request byte
+            data = bytearray(request) # request byte
             for i, frame in enumerate(data_frames, start=1):
-                if frame[5] != i: 
+                if frame[data_start] != i: 
                     logger.error(f'multiline index error frame {i}')
                     continue
-                data.extend(frame[6:])
+                data.extend(frame[data_start + 1:])
 
             if len(data) <= 1: raise Exception('could not assemble multiline response')
 
@@ -124,5 +128,6 @@ class ELM327:
             data_frames[0][1],
             data_frames[0][2],
             data_frames[0][3],
+            request,
             data
         )
