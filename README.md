@@ -19,6 +19,7 @@ A Python library for SAE J1850-VPW communication with GM P01 PCMs (99-03 LS moto
 - read/erase DTCs
 - read emissions monitors and freeze frame data
 - test other PCMs
+- improve exception handling
 
 ### References
 - [PCM Hammer](https://github.com/PcmHammer/PcmHammer) - Tools for reading, writing, and data logging from GM PCMs. Lots of great info here.
