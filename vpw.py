@@ -58,6 +58,9 @@ class DataRate(IntEnum):
     repeat_fast = 0x04
     stop_transmission = 0x00
 
+class VpwException(Exception):
+    pass
+
 class VPWMessage:
     '''
     SAE J1850-VPW message
@@ -81,30 +84,30 @@ class VPWMessage:
         return self.hexstr
 
     # todo: this should return something to indicate what went wrong
-    def validate_response(self, message) -> bool:
+    def validate(self, response) -> bool:
         logger.debug(f'validating response: {message.hexstr}')
-
-        if message.priority != self.priority:
+        valid = True
+        if response.priority != self.priority:
             logger.warning('unexpected priority')
             # response priority doesn't have to match request
 
-        if message.target_address != self.source_address:
+        if response.target_address != self.source_address:
             logger.error('unexpected target address')
-            return False
+            valid = False
 
-        if message.source_address != self.target_address:
+        if response.source_address != self.target_address:
             logger.error('unexpected source address')
-            return False
+            valid = False
         
-        if message.mode != self.mode + 0x40:
+        if response.mode != self.mode + 0x40:
             logger.error('unexpected mode')
-            return False
+            valid = False
 
-        if message.request != self.request:
+        if response.request != self.request:
             logger.error('unexpected request')
-            return False
+            valid = False
 
-        return True
+        return valid
 
 class Parameter():
     '''
@@ -228,7 +231,7 @@ class Dpid():
         return config_messages
 
     def read_parameters(self, message) -> list[int]:
-        if not self.request.validate_response(message):
+        if not self.request.validate(message):
             raise Exception('invalid response message')
 
         values = []

@@ -9,6 +9,9 @@ logging.basicConfig(
     level=logging.DEBUG
 )
 
+class DeviceException(Exception):
+    pass
+
 class ELM327:
     '''
     Handles serial communication with scan tools using ELM327 command set
@@ -71,7 +74,7 @@ class ELM327:
         logger.debug(f'header set: {header}')
 
     def send_message(self, message: VPWMessage) -> VPWMessage:
-        if self.header!= message.header:
+        if self.header != message.header:
             self.set_header(message.header)
 
         response = self.send_command(message.hexstr)

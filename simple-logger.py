@@ -55,14 +55,12 @@ with open(LOGFILE, 'w') as f:
     writer.writerow(fields)
 
     print('logging started. press ctrl+c to stop')
-
     while True:
         try:
             row = [time.time()]
 
             for dpid in dpids:
                 response = elm.send_message(dpid.request)
-
                 try:
                     values = dpid.read_parameters(response)
                 except Exception as e:
