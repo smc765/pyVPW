@@ -12,7 +12,6 @@ A Python library for SAE J1850-VPW communication with GM P01 PCMs (99-03 LS moto
 - change VIN
 
 ### Todo
-- write tests!!
 - setup bench PCM with simulated inputs for testing
 - load parameters from config file
 - VPW bus monitoring, logging and message filtering
@@ -20,9 +19,7 @@ A Python library for SAE J1850-VPW communication with GM P01 PCMs (99-03 LS moto
 - read/erase DTCs
 - read/reset emissions monitors
 - read freeze frame data
-- test more PCMs
 - support for Antus' kernel (see [PCM Hammer wiki](https://github.com/LegacyNsfw/PcmHacks/wiki/Implementation))
-- improve exception handling
 
 ### References
 - [PCM Hammer](https://github.com/PcmHammer/PcmHammer) - Tools for reading, writing, and data logging from GM PCMs. Lots of great info here.

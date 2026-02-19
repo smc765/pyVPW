@@ -1,6 +1,7 @@
 from utils import *
 from enum import IntEnum
 import logging
+import warnings
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -59,12 +60,11 @@ class DataRate(IntEnum):
     stop_transmission = 0x00
 
 class VpwException(Exception):
-    pass
+    '''Base exception for VPW message errors'''
 
 class VPWMessage:
-    '''
-    SAE J1850-VPW message
-    '''
+    '''SAE J1850-VPW message'''
+
     def __init__(self, priority: int, target_address: int, source_address: int, mode: int, request: bytes | int, data=b'', **kwargs):
         self.priority = priority
         self.target_address = target_address
@@ -83,36 +83,29 @@ class VPWMessage:
     def __repr__(self):
         return self.hexstr
 
-    # todo: this should return something to indicate what went wrong
-    def validate(self, response) -> bool:
+    def validate_response(self, response):
+        '''Raise exception for invalid responses'''
+
         logger.debug(f'validating response: {message.hexstr}')
-        valid = True
+
         if response.priority != self.priority:
-            logger.warning('unexpected priority')
-            # response priority doesn't have to match request
+            warnings.warn('unexpected priority') # response priority doesn't have to match request
 
         if response.target_address != self.source_address:
-            logger.error('unexpected target address')
-            valid = False
+            raise VpwException('invalid target address')
 
         if response.source_address != self.target_address:
-            logger.error('unexpected source address')
-            valid = False
+            raise VpwException('invalid source address')
         
-        if response.mode != self.mode + 0x40:
-            logger.error('unexpected mode')
-            valid = False
+        if response.mode != self.mode + 0x40: # request mode + 0x40 in response indicates success
+            raise VpwException('invalid mode')
 
         if response.request != self.request:
-            logger.error('unexpected request')
-            valid = False
-
-        return valid
+            raise VpwException('invalid request')
 
 class Parameter():
-    '''
-    Diagnostic data parameter defined by PID (2 bytes) or Memory Address (3 bytes)
-    '''
+    '''Diagnostic data parameter defined by PID (2 bytes) or Memory Address (3 bytes)'''
+
     def __init__(self, name, parameter: int | tuple[int, ...] | bytes, n_bytes: int, **kwargs):
         self.bytes = get_bytes(parameter)
         self.n_bytes = n_bytes # number of response data bytes
@@ -134,6 +127,7 @@ class Parameter():
         return self.decoder(data)
 
     def get_request(self, **kwargs):
+
         priority = kwargs.pop('priority', Priority.node2node)
         target_address = kwargs.pop('target_address', PhysicalAddress.pcm)
         source_address = kwargs.pop('source_address', PhysicalAddress.scantool)
@@ -160,12 +154,14 @@ class Parameter():
         return self.bytes == other.bytes
 
 class Dpid():
-    '''
-    Diagnostic Data Packet
-    '''
+    '''Diagnostic Data Packet'''
+
     def __init__(self, dpid: int, parameters: list[Parameter, ...]):
         self.id = dpid
         self.parameters = parameters
+
+        if 0 > dpid > 255: raise ValueError('invalid DPID')
+
         self.request = self.get_request()
 
     def __index__(self):
@@ -175,9 +171,8 @@ class Dpid():
         return bytes([self.id])
 
     def get_request(self, **kwargs):
-        '''
-        Generate request message
-        '''
+        '''Generate DPID request message'''
+
         priority = kwargs.pop('priority', Priority.node2node)
         target_address = kwargs.pop('target_address', PhysicalAddress.pcm)
         source_address = kwargs.pop('source_address', PhysicalAddress.scantool)
@@ -199,6 +194,7 @@ class Dpid():
         Generate list of configuration messages
         See SAE J2190 5.19.3
         '''
+
         priority = kwargs.pop('priority', Priority.node2node)
         target_address = kwargs.pop('target_address', PhysicalAddress.pcm)
         source_address = kwargs.pop('source_address', PhysicalAddress.scantool)
@@ -231,8 +227,7 @@ class Dpid():
         return config_messages
 
     def read_parameters(self, message) -> list[int]:
-        if not self.request.validate(message):
-            raise Exception('invalid response message')
+        '''Read parameters from a DPID response'''
 
         values = []
         read_byte = 0
@@ -240,12 +235,7 @@ class Dpid():
             data = message.data[read_byte: read_byte + param.n_bytes]
             values.append(param.decode(data))
             read_byte += param.n_bytes
+
             logger.debug(f'parameter={param.name} value={data.hex()}')
 
         return values
-
-    def read_parameter(self, message, search_parameter):
-        values = self.read_parameters(message)
-        for i, value in enumerate(values):
-            if self.parameters[i] == search_parameter:
-                return value
