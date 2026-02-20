@@ -175,7 +175,7 @@ class Dpid():
         self.id = dpid
         self.parameters = parameters
 
-        if 0 > dpid > 255: raise ValueError('invalid DPID')
+        if dpid > 0xFF: raise ValueError('invalid DPID')
 
         self.request = self.get_request()
 
