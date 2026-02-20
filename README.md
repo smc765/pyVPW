@@ -18,7 +18,7 @@ A Python library for SAE J1850-VPW communication with GM P01 PCMs (99-03 LS moto
 - data transfer (modes $34-$37)
 - read/erase DTCs
 - read/reset emissions monitors
-- read freeze frame data
+- freeze frame
 - support for Antus' kernel (see [PCM Hammer wiki](https://github.com/LegacyNsfw/PcmHacks/wiki/Implementation))
 
 ### References

@@ -27,7 +27,7 @@ class Priority(IntEnum):
     IFR not allowed (GM):   $8-B=functional, $C-F=physical
     '''
     functional0 = 0x68
-    node2node = 0x6C
+    physical0 = 0x6C
 
 class FunctionalAddress(IntEnum):
     request_legislated = 0x6A
@@ -36,6 +36,7 @@ class FunctionalAddress(IntEnum):
 class PhysicalAddress(IntEnum):
     scantool = 0xF1
     pcm = 0x10
+    broadcast = 0xFE
 
 class Mode(IntEnum):
     read_block = 0x3C
@@ -46,6 +47,7 @@ class Mode(IntEnum):
     dpid_request = 0x2A
     download_request = 0x34
     data_transfer = 0x36
+    test_device_present
 
 class DataRate(IntEnum):
     '''
@@ -128,7 +130,7 @@ class Parameter():
 
     def get_request(self, **kwargs):
 
-        priority = kwargs.pop('priority', Priority.node2node)
+        priority = kwargs.pop('priority', Priority.physical0)
         target_address = kwargs.pop('target_address', PhysicalAddress.pcm)
         source_address = kwargs.pop('source_address', PhysicalAddress.scantool)
         rate = kwargs.pop('rate', DataRate.single_response)
@@ -173,7 +175,7 @@ class Dpid():
     def get_request(self, **kwargs):
         '''Generate DPID request message'''
 
-        priority = kwargs.pop('priority', Priority.node2node)
+        priority = kwargs.pop('priority', Priority.physical0)
         target_address = kwargs.pop('target_address', PhysicalAddress.pcm)
         source_address = kwargs.pop('source_address', PhysicalAddress.scantool)
         rate = kwargs.pop('rate', DataRate.single_response)
@@ -191,16 +193,19 @@ class Dpid():
 
     def get_config(self, **kwargs) -> list[VPWMessage]:
         '''
-        Generate list of configuration messages
-        See SAE J2190 5.19.3
+        Generate list of VPW messages to configure the data packet. Each message adds one parameter.
+        See SAE J2190 5.19
         '''
 
-        priority = kwargs.pop('priority', Priority.node2node)
+        priority = kwargs.pop('priority', Priority.physical0)
         target_address = kwargs.pop('target_address', PhysicalAddress.pcm)
         source_address = kwargs.pop('source_address', PhysicalAddress.scantool)
 
         config_messages = []
-        start_byte = 0b001 # starting byte for data, where 001 is the first byte after the DPID #
+
+        # SAE J2190 5.19.2: starting byte for data, where 001 is the first byte after DPID number
+        # In other words, the index for each parameter in response packet
+        start_byte = 0b001
 
         for param in self.parameters:
             # define by PID (2 bytes)
@@ -211,8 +216,10 @@ class Dpid():
             elif len(param) == 3:
                 byte3 = 0b10 << 6 | start_byte << 3 | param.n_bytes
             
+            # add size of parameter to start_byte
             start_byte += param.n_bytes
 
+            # generate message for adding parameter to DPID
             data = bytes((byte3, *param.bytes))
             config_messages.append(
                 VPWMessage(
@@ -226,16 +233,19 @@ class Dpid():
 
         return config_messages
 
-    def read_parameters(self, message) -> list[int]:
-        '''Read parameters from a DPID response'''
+    def read_parameters(self, message):
+        '''Read parameters from a DPID response. Returns dict of parameters with values'''
 
-        values = []
+        values = dict.fromkeys(self.parameters, None)
         read_byte = 0
-        for param in self.parameters:
+        for param in values:
             data = message.data[read_byte: read_byte + param.n_bytes]
-            values.append(param.decode(data))
+            values[param] = param.decode(data)
             read_byte += param.n_bytes
 
             logger.debug(f'parameter={param.name} value={data.hex()}')
 
         return values
+
+class Dtc():
+    '''Diagnostic Trouble Code'''

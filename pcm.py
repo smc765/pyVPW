@@ -2,6 +2,9 @@ from vpw import *
 from enum import IntEnum
 import logging
 
+DPID_MAX_PARAMS = 4
+DPID_START = 0xA0 # first DPID number
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     filename='debug.log',
@@ -24,15 +27,14 @@ class Pcm:
 
         match pcm_type:
             case 'p01':
-                # unlock algorithms from stgterm.dat in GM software
+                # unlock algorithms from stgterm.dat in GM Tech2 software
                 self.key_algorithm = [36, 20, 82, 1, 126, 56, 151, 42, 190, 56, 152, 212, 40]
 
             case 'p04':
                 self.key_algroithm = [4, 107, 80, 2, 126, 80, 210, 76, 5, 253, 152, 24, 203]
 
     def get_key(self, seed: bytes, algorithm=self.key_algorithm) -> bytes:
-
-        if len(seed) != 2: raise ValueError('seed must be 2 bytes')
+        '''Generate PCM unlock key'''
 
         key = int.from_bytes(seed)
 
@@ -40,7 +42,7 @@ class Pcm:
             high = algorithm[i+1] # next 2 bytes are the operands
             low = algorithm[i+2]
 
-            match algorithm[i]: # match operand
+            match algorithm[i]: # match operation
                 case 0x14:
                     # add HHLL to key
                     key += high << 8 | low
@@ -78,27 +80,31 @@ class Pcm:
         return key.to_bytes(2)
 
     def unlock(self):
+        '''Unlock the PCM'''
 
         seed_request = VPWMessage(
-            Priority.node2node,
+            Priority.physical0,
             PhysicalAddress.pcm,
             PhysicalAddress.scantool,
             Mode.unlock,
             0x01 # request seed
         )
 
-        seed_response = self.device.send_message(seed_request)
+        seed = self.device.send_message(seed_request).data
 
-        if seed_response.data[0] == 0x37: return # PCM is already unlocked
+        if seed[0] == 0x37: # PCM is already unlocked
+            return
 
-        seed = seed_response.data
+        if len(seed) != 2:
+            raise PcmUnlockException(f'received invalid seed: {seed}')
+
         key = self.get_key(seed)
         
         logger.debug(f'received seed: {seed}')
         logger.debug(f'sending key: {key}')
 
         unlock_request = VPWMessage(
-            Priority.node2node,
+            Priority.physical0,
             PhysicalAddress.pcm,
             PhysicalAddress.scantool,
             Mode.unlock,
@@ -124,10 +130,14 @@ class Pcm:
             case 0x37:
                 raise PcmUnlockException('time delay not expired')
 
+            case _:
+                raise PcmUnlockException(f'unknown response code: {response_code}')
+
     def read_block(self, block_id: int) -> bytes:
+        '''Read data block'''
 
         read_request = VPWMessage(
-            Priority.node2node,
+            Priority.physical0,
             PhysicalAddress.pcm,
             PhysicalAddress.scantool,
             Mode.read_block,
@@ -138,10 +148,12 @@ class Pcm:
         return response.data
 
     def write_block(self, block_id: int, data: bytes):
-        '''Write data block. PCM must be unlocked'''
+        '''Write data block'''
+
+        self.unlock()
 
         write_request = VPWMessage(
-            Priority.node2node,
+            Priority.physical0,
             PhysicalAddress.pcm,
             PhysicalAddress.scantool,
             Mode.write_block,
@@ -175,3 +187,23 @@ class Pcm:
         self.write_block(BlockId.vin1, bytes((0x00, *vin_bytes[:5]))) # first byte is 0x00
         self.write_block(BlockId.vin2, vin_bytes[5:11])
         self.write_block(BlockId.vin2, vin_bytes[11:])
+
+    def setup_dpids(self, parameters: list[Parameter]) -> list[Dpid]:
+        '''Setup DPIDs for a list of parameters'''
+
+        # split parameters into groups of size <= DPID_MAX_PARAMS
+        param_groups = [parameters[i:i + DPID_MAX_PARAMS] for i in range(0, len(parameters), DPID_MAX_PARAMS)]
+
+        # generate DPIDs
+        dpids = [Dpid(i, params) for i, params in enumerate(param_groups, start=DPID_START)]
+
+        # generate config messages
+        config_messages = []
+        for dpid in dpids:
+            config_messages.extend(dpid.get_config())
+
+        # send config messages
+        for message in config_messages:
+            self.device.send_message(message)
+
+        return dpids

@@ -1,3 +1,8 @@
+'''
+This file is for testing/proof-of-concept purposes only!
+It has not been tested on real vehicles.
+'''
+
 from device import ELM327
 from vpw import *
 from decoders import *
@@ -62,7 +67,7 @@ with open(LOGFILE, 'w') as f:
             for dpid in dpids:
                 response = elm.send_message(dpid.request)
                 try:
-                    values = dpid.read_parameters(response)
+                    values = dpid.read_parameters(response).values()
                 except Exception as e:
                     logger.error(e)
                     break
