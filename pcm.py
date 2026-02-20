@@ -151,8 +151,6 @@ class Pcm:
     def write_block(self, block_id: int, data: bytes):
         '''Write data block'''
 
-        self.unlock()
-
         write_request = VpwMessage(
             Priority.physical0,
             PhysicalAddress.pcm,
@@ -162,7 +160,11 @@ class Pcm:
             data
         )
 
-        self.device.send_message(write_request)
+        try:
+            self.device.send_message(write_request)
+        except SecurityException:
+            self.unlock()
+            self.device.send_message(write_request)
 
     def get_osid(self) -> int:
         '''Get operating system ID'''

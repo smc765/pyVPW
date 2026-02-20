@@ -95,21 +95,25 @@ class VpwMessage:
 
         logger.debug(f'validating response: {message.hexstr}')
 
+        # response priority should probably match request priority
         if response.priority != self.priority:
-            warnings.warn('unexpected priority') # response priority doesn't have to match request
+            warnings.warn('unexpected priority')
 
         if response.target_address != self.source_address:
             raise VpwException('invalid target address')
 
         if response.source_address != self.target_address:
             raise VpwException('invalid source address')
-
-        if response.mode == Mode.general_response and response.data[-1] == 0x33:
-            raise SecurityException('access denied')
         
-        if response.mode != self.mode + 0x40: # request mode + 0x40 in response indicates success
+        # valid response modes are 0x33 or 0x40 + request mode
+        if response.mode != self.mode + 0x40 and response.mode != Mode.general_response:
             raise VpwException('invalid mode')
 
+        # secure access mode requested while PCM is locked
+        if response.mode == Mode.general_response and response.data[-1] == 0x33:
+            raise SecurityException('access denied')
+
+        # PCM should echo request
         if response.request != self.request:
             raise VpwException('invalid request')
 
