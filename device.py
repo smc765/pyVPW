@@ -50,6 +50,8 @@ class ELM327:
         logger.debug(f'protocol set: {protocol}')
 
     def send_command(self, cmd: str, prompt_char=b'>') -> list[str]:
+        '''Send command and wait for response'''
+
         logger.debug(f'TX: {cmd}')
         cmd = cmd + '\r'
         cmd = cmd.encode('ASCII')
@@ -64,10 +66,11 @@ class ELM327:
         # remove prompt char
         if buf.endswith(prompt_char):
             buf = buf[:-1]
-            warnings.warn('unexpected prompt char in response')
+            warnings.warn('prompt char in response')
 
+        # decode buffer, seperate lines, strip whitespace, remove empty lines
         string = buf.decode('ASCII')
-        lines = [i.strip() for i in string.split('\r') if len(i) != 0] # seperate lines, strip whitespace, remove empty lines
+        lines = [i.strip() for i in string.split('\r') if len(i) != 0]
 
         return lines
 
@@ -81,6 +84,8 @@ class ELM327:
         logger.debug(f'header set: {header}')
 
     def send_message(self, message: VpwMessage) -> VpwMessage:
+        '''Send VpwMessage and return response'''
+
         if self.header != message.header:
             self.set_header(message.header)
 
@@ -124,7 +129,7 @@ class ELM327:
                 data.extend(frame[data_start + 1:])
                 i += 1
 
-            if len(data) <= len(request): raise DeviceException('could not assemble multiline response')
+            if len(data) <= len(request): raise DeviceException('something has gone terribly wrong')
 
         logger.debug(f'received data: {data.hex()}')
 

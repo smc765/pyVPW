@@ -18,8 +18,8 @@ class BlockId(IntEnum):
     vin3 = 0x03 # last 6 bytes
     osid = 0x0A # operating system id
 
-class PcmUnlockException(Exception):
-    '''Raised when unlock fails'''
+class SeedKeyException(Exception):
+    '''Raised when PCM unlock fails'''
 
 class Pcm:
     def __init__(self, device, pcm_type='p01', **kwargs):
@@ -97,7 +97,7 @@ class Pcm:
             return
 
         if len(seed) != 2:
-            raise PcmUnlockException(f'received invalid seed: {seed}')
+            raise SeedKeyException(f'received invalid seed: {seed}')
 
         key = self.get_key(seed)
         
@@ -120,19 +120,19 @@ class Pcm:
                 return
 
             case 0x34:
-                raise PcmUnlockException('access denied')
+                raise SeedKeyException('access denied')
 
             case 0x35:
-                raise PcmUnlockException('key not accepted')
+                raise SeedKeyException('key not accepted')
 
             case 0x36:
-                raise PcmUnlockException('too many unlock attempts')
+                raise SeedKeyException('too many unlock attempts')
 
             case 0x37:
-                raise PcmUnlockException('time delay not expired')
+                raise SeedKeyException('time delay not expired')
 
             case _:
-                raise PcmUnlockException(f'unknown response code: {response_code}')
+                raise SeedKeyException(f'unknown response code: {response_code}')
 
     def read_block(self, block_id: int) -> bytes:
         '''Read data block'''

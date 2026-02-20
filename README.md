@@ -30,6 +30,7 @@ A Python library for SAE J1850-VPW communication with GM P01 PCMs (99-03 LS moto
 - SAE J2190 - non-legislated modes (Extended PIDs, DPIDs, reading/writing memory, etc.)
 - SAE J2178/1 - detailed header format and physical address assignments
 - [GM SeedKey Algorithm Paper](https://pcmhacking.net/forums/viewtopic.php?t=5876) - Reverse engineered PCM unlock algorithm
+- [ELM327 Datasheet](https://cdn.sparkfun.com/assets/learn_tutorials/8/3/ELM327DS.pdf)
 
 ### Disclaimer
 This project is still in the early stage of development and has not been throughly tested on real vehicles.
