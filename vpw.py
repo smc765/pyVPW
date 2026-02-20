@@ -40,6 +40,7 @@ class PhysicalAddress(IntEnum):
 
 class Mode(IntEnum):
     read_block = 0x3C
+    write_block = 0x3B
     unlock = 0x27
     get_pid = 0x22
     get_address = 0x23
@@ -47,7 +48,8 @@ class Mode(IntEnum):
     dpid_request = 0x2A
     download_request = 0x34
     data_transfer = 0x36
-    test_device_present
+    test_device_present = 0x3F
+    general_response = 0x7F
 
 class DataRate(IntEnum):
     '''
@@ -64,7 +66,10 @@ class DataRate(IntEnum):
 class VpwException(Exception):
     '''Base exception for VPW message errors'''
 
-class VPWMessage:
+class SecurityException(VpwException):
+    '''Raised when secure mode is requested while PCM is locked'''
+
+class VpwMessage:
     '''SAE J1850-VPW message'''
 
     def __init__(self, priority: int, target_address: int, source_address: int, mode: int, request: bytes | int, data=b'', **kwargs):
@@ -98,6 +103,9 @@ class VPWMessage:
 
         if response.source_address != self.target_address:
             raise VpwException('invalid source address')
+
+        if response.mode == Mode.general_response and response.data[-1] == 0x33:
+            raise SecurityException('access denied')
         
         if response.mode != self.mode + 0x40: # request mode + 0x40 in response indicates success
             raise VpwException('invalid mode')
@@ -129,6 +137,7 @@ class Parameter():
         return self.decoder(data)
 
     def get_request(self, **kwargs):
+        '''Generate parameter request message'''
 
         priority = kwargs.pop('priority', Priority.physical0)
         target_address = kwargs.pop('target_address', PhysicalAddress.pcm)
@@ -141,7 +150,7 @@ class Parameter():
         elif len(self.bytes) == 3:
             mode = Mode.get_address
 
-        message = VPWMessage(
+        message = VpwMessage(
             priority,
             target_address,
             source_address,
@@ -180,7 +189,7 @@ class Dpid():
         source_address = kwargs.pop('source_address', PhysicalAddress.scantool)
         rate = kwargs.pop('rate', DataRate.single_response)
 
-        request = VPWMessage(
+        request = VpwMessage(
             priority,
             target_address,
             source_address,
@@ -191,7 +200,7 @@ class Dpid():
 
         return request
 
-    def get_config(self, **kwargs) -> list[VPWMessage]:
+    def get_config(self, **kwargs) -> list[VpwMessage]:
         '''
         Generate list of VPW messages to configure the data packet. Each message adds one parameter.
         See SAE J2190 5.19
@@ -222,7 +231,7 @@ class Dpid():
             # generate message for adding parameter to DPID
             data = bytes((byte3, *param.bytes))
             config_messages.append(
-                VPWMessage(
+                VpwMessage(
                     priority,
                     target_address,
                     source_address,

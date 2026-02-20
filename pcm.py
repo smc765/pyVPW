@@ -82,7 +82,7 @@ class Pcm:
     def unlock(self):
         '''Unlock the PCM'''
 
-        seed_request = VPWMessage(
+        seed_request = VpwMessage(
             Priority.physical0,
             PhysicalAddress.pcm,
             PhysicalAddress.scantool,
@@ -92,7 +92,8 @@ class Pcm:
 
         seed = self.device.send_message(seed_request).data
 
-        if seed[0] == 0x37: # PCM is already unlocked
+        # check if PCM is already unlocked
+        if seed[0] == 0x37 or seed == bytes((0x00,0x00)):
             return
 
         if len(seed) != 2:
@@ -103,7 +104,7 @@ class Pcm:
         logger.debug(f'received seed: {seed}')
         logger.debug(f'sending key: {key}')
 
-        unlock_request = VPWMessage(
+        unlock_request = VpwMessage(
             Priority.physical0,
             PhysicalAddress.pcm,
             PhysicalAddress.scantool,
@@ -136,7 +137,7 @@ class Pcm:
     def read_block(self, block_id: int) -> bytes:
         '''Read data block'''
 
-        read_request = VPWMessage(
+        read_request = VpwMessage(
             Priority.physical0,
             PhysicalAddress.pcm,
             PhysicalAddress.scantool,
@@ -152,7 +153,7 @@ class Pcm:
 
         self.unlock()
 
-        write_request = VPWMessage(
+        write_request = VpwMessage(
             Priority.physical0,
             PhysicalAddress.pcm,
             PhysicalAddress.scantool,
@@ -164,11 +165,13 @@ class Pcm:
         self.device.send_message(write_request)
 
     def get_osid(self) -> int:
+        '''Get operating system ID'''
 
         osid_bytes = read_block(BlockId.osid)
         return int.from_bytes(osid_bytes)
 
     def get_vin(self) -> str:
+        '''Get VIN'''
 
         vin1 = self.read_block(BlockId.vin1)
         vin2 = self.read_block(BlockId.vin2)

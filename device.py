@@ -20,6 +20,7 @@ class ELM327:
     '''Handles serial communication with ELM327 scantools'''
 
     def __init__(self, port, baudrate, timeout=1, **kwargs):
+        # initalize serial port
         self.port = serial.Serial(
             port=port,
             baudrate=baudrate,
@@ -79,7 +80,7 @@ class ELM327:
 
         logger.debug(f'header set: {header}')
 
-    def send_message(self, message: VPWMessage) -> VPWMessage:
+    def send_message(self, message: VpwMessage) -> VpwMessage:
         if self.header != message.header:
             self.set_header(message.header)
 
@@ -127,7 +128,7 @@ class ELM327:
 
         logger.debug(f'received data: {data.hex()}')
 
-        response = VPWMessage(
+        response = VpwMessage(
             data_frames[0][0], # priority
             data_frames[0][1], # target address
             data_frames[0][2], # source address
