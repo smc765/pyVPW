@@ -26,7 +26,7 @@ class DataRate(IntEnum):
     See SAE J2190 section 5.10
     Applies to modes $21-$23, $2A, and probably others
     '''
-    single_response = 0x01
+    single_response = 0x01 # this is the only one used for elm327
     repeat_slow = 0x02
     repeat_medium = 0x03
     repeat_fast = 0x04
@@ -95,7 +95,7 @@ class VpwMessage:
         return bytes(self)[index]
 
     def __eq__(self, other):
-        return (self.get_header, bytes(self)) == (other.get_header(), bytes(other))
+        return (self.get_header(), bytes(self)) == (other.get_header(), bytes(other))
 
 class Pid:
     def __init__(self, name: str, pid: int, size: int, decoder=None):

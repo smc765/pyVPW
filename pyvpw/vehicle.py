@@ -15,6 +15,10 @@ SEEDKEY_ALGORITHMS = {
     'p04_early': [160, 42, 169, 58, 20, 1, 191, 107, 237, 11, 76, 5, 205]
 }
 
+# these values should work but need to test more
+DPID_START = 0xA0
+DPID_MAX_PIDS = 4
+
 class VehicleException(Exception):
     '''raised when vehicle responds with error'''
 
@@ -27,7 +31,7 @@ class Vehicle:
     def __init__(self, device):
         self._device = device
 
-    def request_pid(self, pid: Pid) -> bytes: # no good reason to use Pid instead of int here
+    def request_pid(self, pid: Pid) -> bytes: # no good reason to use Pid here instead of int
         '''mode $01 - request PID'''
         
         if pid.id not in range(0xFF):
@@ -109,12 +113,15 @@ class GmVehicle(Vehicle):
         response = self._device.send_message(request)[0]
         return dpid.unpack(response)
     
-    def setup_dpids(self, pids: list[Pid], max_pids=4, start_address=0x00):
+    def setup_dpids(self, pids: list[Pid], max_pids=DPID_MAX_PIDS, start=DPID_START):
         '''setup DPIDs for a list of PIDs'''
 
+        if self.dpids:
+            start = max(dpid.id for dpid in self.dpids) + 1 # get next available DPID
+
         # split PIDs into DPIDs of size <= max size
-        pid_groups = [pids[i:i + max_params] for i in range(0, len(pids), max_params)]
-        dpids = [Dpid(i, group) for i, group in enumerate(pid_groups, start=start_address)]
+        pid_groups = [pids[i:i + max_pids] for i in range(0, len(pids), max_pids)]
+        dpids = [Dpid(i, group) for i, group in enumerate(pid_groups, start=start)]
         
         for dpid in dpids:
             self.define_dpid(dpid)
