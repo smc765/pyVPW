@@ -91,6 +91,7 @@ class Elm327(Device):
         self.send_command('AT E0') # disable echo
         self.send_command('AT S0') # disable spaces
         self.send_command('AT H1') # display headers
+        self.send_command('AT AL') # allow long (>7 byte) messages
         
         self._header = None # current message header
 
@@ -121,7 +122,7 @@ class Elm327(Device):
         logger.debug(f'RX: {string}')
 
         if '?' in lines:
-            raise DeviceException('idk')
+            raise DeviceException('invalid message not sent')
 
         return lines
 

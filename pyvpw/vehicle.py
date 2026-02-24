@@ -184,7 +184,6 @@ class GmVehicle(Vehicle):
         return response.data
     
     def write_block(self, block_id: int, data: bytes):
-        self.unlock()
         request = VpwMessage(
             Priority.physical0,
             PhysicalAddress.pcm,
@@ -193,7 +192,10 @@ class GmVehicle(Vehicle):
             block_id,
             data
         )
-        self._device.send_message(request)
+        response = self._device.send_message(request)[0]
+
+        if response.submode != request.submode:
+            raise VehicleException('write failed')
 
     def read_vin(self) -> str:
         vin1 = self.read_block(GmBlockId.vin1)
@@ -207,7 +209,7 @@ class GmVehicle(Vehicle):
         vin_bytes = vin.encode('ASCII')
         self.write_block(GmBlockId.vin1, bytes((0x00, *vin_bytes[:5]))) # first byte is 0x00
         self.write_block(GmBlockId.vin2, vin_bytes[5:11])
-        self.write_block(GmBlockId.vin2, vin_bytes[11:])
+        self.write_block(GmBlockId.vin3, vin_bytes[11:])
 
     def read_osid(self) -> int:
         return int.from_bytes(self.read_block(GmBlockId.osid))
