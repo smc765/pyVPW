@@ -9,6 +9,9 @@ A Python library for SAE J1850-VPW communication with 1999-2003 GM PCMs using EL
 - unlock PCM
 - change VIN
 
+### VIN Writer Usage
+    python vin_writer.py [portname] [pcm_type] [vin]
+
 ### Todo
 - write to memory (modes $34-$37)
 - read/erase DTCs
