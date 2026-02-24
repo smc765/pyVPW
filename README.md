@@ -1,26 +1,18 @@
 # pyVPW
-A Python library for SAE J1850-VPW communication with GM P01 PCMs (99-03 LS motors) using ELM327 scan tools.
+A Python library for SAE J1850-VPW communication with 1999-2003 GM PCMs using ELM327 scan tools.
 
 ### Features
-- define diagnostic data packets (dpid) combining up to 4 parameters
-- define parameters by PID or memory address
-- generate request messages for parameters
+- define diagnostic data packets (DPID) combining up to 4 PIDs
 - read and decode PIDs
-- send/receive and validate VPW messages
+- send/receive and VPW messages
 - read/write data blocks (VIN, Serial Number, OSID, etc.)
 - unlock PCM
 - change VIN
 
 ### Todo
-- setup bench PCM with simulated inputs for testing
-- data logging config files
-- VPW bus monitoring
-- write to RAM (modes $34-$37)
+- write to memory (modes $34-$37)
 - read/erase DTCs
-- read/reset emissions monitors
 - freeze frame
-- support for Antus' kernel (see [PCM Hammer wiki](https://github.com/LegacyNsfw/PcmHacks/wiki/Implementation))
-- test device present (mode $3F)
 
 ### References
 - [PCM Hammer](https://github.com/PcmHammer/PcmHammer) - Tools for reading, writing, and data logging from GM PCMs. Lots of great info here.
