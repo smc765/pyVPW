@@ -98,10 +98,10 @@ class VpwMessage:
         return (self.get_header(), bytes(self)) == (other.get_header(), bytes(other))
 
 class Pid:
-    def __init__(self, name: str, pid: int, size: int, decoder=None):
+    def __init__(self, name: str, pid: int, size: int, decoder=lambda x: x):
         self.name = name
         self.id = pid
-        self.size = size
+        self.size = size # number of data bytes returned
         self.decoder = decoder
         assert pid in range(0xFFFF)
 
@@ -126,13 +126,13 @@ class Dpid:
     def __eq__(self, other):
         return self.id == other.id
 
-    def unpack(self, message: VpwMessage) -> dict[Pid, bytes]: # should this go here?
+    def unpack(self, data: bytes) -> dict[Pid, bytes]: # should this go here?
         '''return dict of PIDs and values'''
 
         values = dict.fromkeys(self.pids, None)
         read_byte = 0
         for pid in values:
-            values[pid] = message.data[read_byte: read_byte + pid.size]
+            values[pid] = data[read_byte: read_byte + pid.size]
             read_byte += pid.size
 
         return values

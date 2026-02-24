@@ -1,4 +1,5 @@
 from enum import IntEnum
+from typing import Any
 from .vpw import *
 from .device import *
 
@@ -31,7 +32,7 @@ class Vehicle:
     def __init__(self, device):
         self._device = device
 
-    def request_pid(self, pid: Pid) -> bytes: # no good reason to use Pid here instead of int
+    def request_pid(self, pid: Pid):
         '''mode $01 - request PID'''
         
         if pid.id not in range(0xFF):
@@ -46,7 +47,7 @@ class Vehicle:
         )
 
         response = self._device.send_message(request)[0]
-        return response.data
+        return pid.decoder(response.data)
 
 class GmVehicle(Vehicle):
     '''implements GM specific SAE J2190 modes'''
@@ -57,20 +58,22 @@ class GmVehicle(Vehicle):
         self._seedkey_algorithm = SEEDKEY_ALGORITHMS[pcm_type]
         self.dpids = set() # defined DPIDs
 
-    def request_pid(self, pid: Pid) -> bytes:
+    def request_pid(self, pid: Pid):
         '''mode $22 - request PID'''
+
+        pid_bytes = pid.id.to_bytes(2) # mode $22 PIDs are 2 bytes
 
         request = VpwMessage(
             Priority.functional0,
             FunctionalAddress.obd_request,
             PhysicalAddress.scantool,
             Mode.get_pid_ext,
-            pid.id,
+            pid_bytes,
             DataRate.single_response
         )
 
         response = self._device.send_message(request)[0]
-        return response.data
+        return pid.decoder(response.data)
 
     def define_dpid(self, dpid: Dpid):
         '''mode $2C - define diagnostic data packet'''
@@ -98,7 +101,7 @@ class GmVehicle(Vehicle):
 
         self.dpids.add(dpid)
 
-    def request_dpid(self, dpid: Dpid) -> dict[Pid, bytes]:
+    def request_dpid(self, dpid: Dpid) -> dict[Pid, Any]:
         '''mode $2A - request diagnostic data packet'''
 
         request = VpwMessage(
@@ -111,7 +114,12 @@ class GmVehicle(Vehicle):
         )
 
         response = self._device.send_message(request)[0]
-        return dpid.unpack(response)
+        data = dpid.unpack(response.data)
+
+        for pid, value in data.items():
+            data[pid] = pid.decoder(value)
+
+        return data
     
     def setup_dpids(self, pids: list[Pid], max_pids=DPID_MAX_PIDS, start=DPID_START):
         '''setup DPIDs for a list of PIDs'''
