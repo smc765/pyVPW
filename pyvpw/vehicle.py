@@ -1,5 +1,6 @@
 from enum import IntEnum
 from typing import Any
+import re
 from .vpw import *
 from .device import *
 
@@ -205,7 +206,9 @@ class GmVehicle(Vehicle):
         return vin_bytes.decode('ASCII')
 
     def write_vin(self, vin: str):
-        if len(vin) != 17: raise ValueError('VIN must be 17 characters')
+        if not re.match(r'\b[(A-H|J-N|P|R-Z|0-9)]{17}\b', vin):
+            raise ValueError('invalid VIN')
+
         vin_bytes = vin.encode('ASCII')
         self.write_block(GmBlockId.vin1, bytes((0x00, *vin_bytes[:5]))) # first byte is 0x00
         self.write_block(GmBlockId.vin2, vin_bytes[5:11])
