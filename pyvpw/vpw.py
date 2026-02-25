@@ -7,18 +7,13 @@ class Priority(IntEnum):
     See SAE J2178-1 section 7.2
 
     bits 7,6,5:  priority (0-7)
-    bit 4:       H=0 (3 byte header)
-    bit 3:       IFR (1=not allowed 0=required)
-    bit 2:       addressing Mode (1=physical 0=functional)
-    bit 1,0:     Message Type
-
-    high nibble (prioriry) = $0=0 $2=1 $4=2 $6=3 $8=4 $A=5 $C=6 $E=7
-    low nibble defines 16 message types (SAE J1278/1 7.2.1.5)
-    IFR required:           $0-3=functional, $4-7=physical
-    IFR not allowed (GM):   $8-B=functional, $C-F=physical
+    bit 4:       0 = 3 byte header
+    bit 3:       IFR: 1=not allowed (GM), 0=required
+    bit 2:       addressing mode: 1=physical, 0=functional
+    bit 1,0:     message type
     '''
-    functional0 = 0x68
-    physical0 = 0x6C
+    functional0 = 0x68 # priority 3, GM, functional, Type: Function Command/Status
+    physical0 = 0x6C # priority 3, GM, physical, Type: Node-to-Node
 
 class DataRate(IntEnum):
     '''
@@ -109,22 +104,52 @@ class Pid:
         return get_bytes(self.id)
 
     def __eq__(self, other):
-        return self.id == other.id
+        if isinstance(other, Pid):
+            return self.id == other.id
+        elif isinstance(other, int):
+            return self.id == other
+        elif isinstance(other, bytes):
+            return bytes(self) == other
+        else:
+            raise NotImplementedError
 
     def __hash__(self):
         return hash(self.id)
 
+    def __str__(self):
+        return self.name
+
 class Dpid:
     def __init__(self, dpid: int, pids: list[Pid]):
         self.id = dpid
-        self.pids = pids
+        self.pids = set(pids)
         assert dpid in range(0xFF)
 
     def __bytes__(self):
-        return get_bytes(self.id)
+        return self.id.to_bytes()
 
     def __eq__(self, other):
-        return self.id == other.id
+        if isinstance(other, Dpid):
+            return self.id == other.id
+        elif isinstance(other, int):
+            return self.id == other
+        elif isinstance(other, bytes):
+            return bytes(self) == other
+        else:
+            raise NotImplementedError
+
+    def __hash__(self):
+        return hash(self.id)
+
+    def __contains__(self, key):
+        if isinstance(key, Pid):
+            return key in self.pids
+        elif isinstance(key, int):
+            return key in [pid.id for pid in self.pids]
+        elif isinstance(key, bytes):
+            return key in [bytes(pid) for pid in self.pids]
+        else:
+            raise NotImplementedError
 
     def unpack(self, data: bytes) -> dict[Pid, bytes]: # should this go here?
         '''return dict of PIDs and values'''

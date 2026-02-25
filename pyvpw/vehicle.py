@@ -97,7 +97,7 @@ class GmVehicle(Vehicle):
         for message in config_messages:
             response = self._device.send_message(message)[0]
             
-            if response.submode != dpid.id:
+            if response.submode != bytes(dpid):
                 raise VehicleException('could not define DPID')
 
         self.dpids.add(dpid)
