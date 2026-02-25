@@ -83,7 +83,7 @@ class GmVehicle(Vehicle):
         start_byte = 0b001 # index of PID in response packet
 
         for pid in dpid.pids:
-            byte3 = 0b01 << 6 | start_byte << 3 | pid.size
+            byte3 = 0b01 << 6 | start_byte << 3 | pid.size # See SAE J2190 5.19
             start_byte += pid.size
             config_messages.append(VpwMessage(
                 Priority.physical0,
@@ -91,7 +91,7 @@ class GmVehicle(Vehicle):
                 PhysicalAddress.scantool,
                 Mode.define_dpid,
                 dpid.id,
-                bytes((byte3, *bytes(pid)))
+                (byte3, *pid.to_bytes(2))
             ))
         
         for message in config_messages:
