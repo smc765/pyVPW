@@ -62,14 +62,12 @@ class GmVehicle(Vehicle):
     def request_pid(self, pid: Pid):
         '''mode $22 - request PID'''
 
-        pid_bytes = pid.id.to_bytes(2) # mode $22 PIDs are 2 bytes
-
         request = VpwMessage(
             Priority.functional0,
             FunctionalAddress.obd_request,
             PhysicalAddress.scantool,
             Mode.get_pid_ext,
-            pid_bytes,
+            bytes(pid),
             DataRate.single_response
         )
 
@@ -91,7 +89,7 @@ class GmVehicle(Vehicle):
                 PhysicalAddress.scantool,
                 Mode.define_dpid,
                 dpid.id,
-                (byte3, *pid.id.to_bytes(2))
+                (byte3, *bytes(pid))
             ))
         
         for message in config_messages:

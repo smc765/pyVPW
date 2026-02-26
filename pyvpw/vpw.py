@@ -101,7 +101,7 @@ class Pid:
         assert pid in range(0xFFFF)
 
     def __bytes__(self):
-        return get_bytes(self.id)
+        return self.id.to_bytes(2)
 
     def __eq__(self, other):
         if isinstance(other, Pid):
