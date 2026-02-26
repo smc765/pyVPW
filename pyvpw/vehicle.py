@@ -18,7 +18,7 @@ SEEDKEY_ALGORITHMS = {
 }
 
 # these values should work but need to test more
-DPID_START = 0xF2
+DPID_START = 0xFA
 DPID_MAX_PIDS = 4
 
 class VehicleException(Exception):
@@ -89,7 +89,7 @@ class GmVehicle(Vehicle):
                 PhysicalAddress.scantool,
                 Mode.define_dpid,
                 dpid.id,
-                (byte3, *bytes(pid))
+                (byte3, *bytes(pid), 0xFF, 0xFF)
             ))
         
         for message in config_messages:
@@ -104,12 +104,12 @@ class GmVehicle(Vehicle):
         '''mode $2A - request diagnostic data packet'''
 
         request = VpwMessage(
-            Priority.functional0,
-            FunctionalAddress.obd_request,
+            Priority.physical0,
+            PhysicalAddress.pcm,
             PhysicalAddress.scantool,
-            Mode.get_pid_ext,
-            dpid.id,
-            DataRate.single_response
+            Mode.request_dpid,
+            DataRate.single_response,
+            dpid.id
         )
 
         response = self._device.send_message(request)[0]
