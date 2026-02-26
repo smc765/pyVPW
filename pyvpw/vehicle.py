@@ -18,7 +18,7 @@ SEEDKEY_ALGORITHMS = {
 }
 
 # these values should work but need to test more
-DPID_START = 0xA0
+DPID_START = 0xF2
 DPID_MAX_PIDS = 4
 
 class VehicleException(Exception):
@@ -80,7 +80,7 @@ class GmVehicle(Vehicle):
         '''mode $2C - define diagnostic data packet'''
 
         config_messages = []
-        start_byte = 0b001 # index of PID in response packet
+        start_byte = 0b001 # byte offset of data in response packet
 
         for pid in dpid.pids:
             byte3 = 0b01 << 6 | start_byte << 3 | pid.size # See SAE J2190 5.19
@@ -91,7 +91,7 @@ class GmVehicle(Vehicle):
                 PhysicalAddress.scantool,
                 Mode.define_dpid,
                 dpid.id,
-                (byte3, *pid.to_bytes(2))
+                (byte3, *pid.id.to_bytes(2))
             ))
         
         for message in config_messages:
