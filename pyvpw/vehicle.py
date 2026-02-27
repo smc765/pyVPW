@@ -1,5 +1,4 @@
 from enum import IntEnum
-from typing import Any
 import re
 from .vpw import *
 from .device import *
@@ -19,7 +18,7 @@ SEEDKEY_ALGORITHMS = {
 
 # these values should work but need to test more
 DPID_START = 0xFA
-DPID_MAX_PIDS = 4
+DPID_MAX_PIDS = 6
 
 class VehicleException(Exception):
     '''raised when vehicle responds with error'''
@@ -33,7 +32,7 @@ class Vehicle:
     def __init__(self, device):
         self._device = device
 
-    def request_pid(self, pid: Pid):
+    def request_pid(self, pid: Pid) -> bytes:
         '''mode $01 - request PID'''
         
         if pid.id not in range(0xFF):
@@ -48,7 +47,8 @@ class Vehicle:
         )
 
         response = self._device.send_message(request)[0]
-        return pid.decoder(response.data)
+        # return pid.decoder(response.data)
+        return response.data
 
 class GmVehicle(Vehicle):
     '''implements GM specific SAE J2190 modes'''
@@ -59,12 +59,12 @@ class GmVehicle(Vehicle):
         self._seedkey_algorithm = SEEDKEY_ALGORITHMS[pcm_type]
         self.dpids = set() # defined DPIDs
 
-    def request_pid(self, pid: Pid):
+    def request_pid(self, pid: Pid) -> bytes:
         '''mode $22 - request PID'''
 
         request = VpwMessage(
-            Priority.functional0,
-            FunctionalAddress.obd_request,
+            Priority.physical0,
+            PhysicalAddress.pcm,
             PhysicalAddress.scantool,
             Mode.get_pid_ext,
             bytes(pid),
@@ -72,7 +72,8 @@ class GmVehicle(Vehicle):
         )
 
         response = self._device.send_message(request)[0]
-        return pid.decoder(response.data)
+        # return pid.decoder(response.data)
+        return response.data
 
     def define_dpid(self, dpid: Dpid):
         '''mode $2C - define diagnostic data packet'''
@@ -95,12 +96,12 @@ class GmVehicle(Vehicle):
         for message in config_messages:
             response = self._device.send_message(message)[0]
             
-            if response.submode != bytes(dpid):
-                raise VehicleException('could not define DPID')
+            if response.mode == Mode.general_response:
+                raise VehicleException('request refuesed')
 
         self.dpids.add(dpid)
 
-    def request_dpid(self, dpid: Dpid) -> dict[Pid, Any]:
+    def request_dpid(self, dpid: Dpid) -> dict[Pid, bytes]:
         '''mode $2A - request diagnostic data packet'''
 
         request = VpwMessage(
@@ -113,10 +114,13 @@ class GmVehicle(Vehicle):
         )
 
         response = self._device.send_message(request)[0]
-        data = dpid.unpack(response.data)
 
-        for pid, value in data.items():
-            data[pid] = pid.decoder(value)
+        if response.mode == Mode.general_response:
+            raise VehicleException('request refuesed')
+
+        data = dpid.unpack(response.data)
+        # for pid, value in data.items():
+        #     data[pid] = pid.decoder(value)
 
         return data
     
