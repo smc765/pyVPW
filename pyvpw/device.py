@@ -1,15 +1,12 @@
 import serial
 from enum import IntEnum
-from .utils import *
-from .vpw import *
+from .vpw import VpwMessage
+from .exceptions import DeviceException
 
 import logging
 logger = logging.getLogger(__name__)
 
 ELM_PROMPT = b'>'
-
-class DeviceException(Exception):
-    '''raised for scantool errors'''
 
 class Device:
     '''scantool base class'''
@@ -92,6 +89,9 @@ class Elm327(Device):
         self.send_command('AT S0') # disable spaces
         self.send_command('AT H1') # display headers
         self.send_command('AT AL') # allow long (>7 byte) messages
+
+        self.set_protocol(
+            kwargs.pop('protocol', ElmProtocol.j1850vpw))
         
         self._header = None # current message header
 
@@ -119,7 +119,7 @@ class Elm327(Device):
         string = buffer.decode('ASCII')
         lines = [line.strip() for line in string.split('\r') if bool(line)]
 
-        logger.debug(f'RX: {string}')
+        logger.debug(f'RX: {lines}')
 
         if '?' in lines:
             raise DeviceException('invalid message not sent')

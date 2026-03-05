@@ -1,4 +1,4 @@
-from .utils import *
+from .utils import get_bytes
 from enum import IntEnum
 
 class Priority(IntEnum):
@@ -21,7 +21,7 @@ class DataRate(IntEnum):
     See SAE J2190 section 5.10
     Applies to modes $21-$23, $2A, and probably others
     '''
-    single_response = 0x01 # this is the only one used for elm327
+    single_response = 0x01
     repeat_slow = 0x02
     repeat_medium = 0x03
     repeat_fast = 0x04
@@ -52,7 +52,7 @@ class Mode(IntEnum):
     unlock = 0x27
     get_pid_ext = 0x22
     define_dpid = 0x2C
-    request_dpid = 0x2A
+    get_dpid = 0x2A
     download_request = 0x34
     data_transfer = 0x36
     test_device_present = 0x3F
@@ -61,7 +61,7 @@ class Mode(IntEnum):
 class VpwMessage:
     '''SAE J1850 VPW message'''
 
-    def __init__(self, priority, target_address, source_address, mode, submode, data=b''):
+    def __init__(self, priority, target_address, source_address, mode, submode=b'', data=b''):
         assert priority in range(0xFF)
         assert target_address in range(0xFF)
         assert source_address in range(0xFF)
@@ -91,73 +91,3 @@ class VpwMessage:
 
     def __eq__(self, other):
         return (self.get_header(), bytes(self)) == (other.get_header(), bytes(other))
-
-class Pid:
-    def __init__(self, name: str, pid: int, size: int, decoder=lambda x: x):
-        self.name = name
-        self.id = pid
-        self.size = size # number of data bytes returned
-        self.decoder = decoder
-        assert pid in range(0xFFFF)
-
-    def __bytes__(self):
-        return self.id.to_bytes(2)
-
-    def __eq__(self, other):
-        if isinstance(other, Pid):
-            return self.id == other.id
-        elif isinstance(other, int):
-            return self.id == other
-        elif isinstance(other, bytes):
-            return bytes(self) == other
-        else:
-            raise NotImplementedError
-
-    def __hash__(self):
-        return hash(self.id)
-
-    def __str__(self):
-        return self.name
-
-class Dpid:
-    def __init__(self, dpid: int, pids: list[Pid]):
-        self.id = dpid
-        self.pids = set(pids)
-        assert dpid in range(0xFF)
-
-    def __bytes__(self):
-        return self.id.to_bytes()
-
-    def __eq__(self, other):
-        if isinstance(other, Dpid):
-            return self.id == other.id
-        elif isinstance(other, int):
-            return self.id == other
-        elif isinstance(other, bytes):
-            return bytes(self) == other
-        else:
-            raise NotImplementedError
-
-    def __hash__(self):
-        return hash(self.id)
-
-    def __contains__(self, key):
-        if isinstance(key, Pid):
-            return key in self.pids
-        elif isinstance(key, int):
-            return key in [pid.id for pid in self.pids]
-        elif isinstance(key, bytes):
-            return key in [bytes(pid) for pid in self.pids]
-        else:
-            raise NotImplementedError
-
-    def unpack(self, data: bytes) -> dict[Pid, bytes]: # should this go here?
-        '''return dict of PIDs and values'''
-
-        values = dict.fromkeys(self.pids, None)
-        read_byte = 0
-        for pid in values:
-            values[pid] = data[read_byte: read_byte + pid.size]
-            read_byte += pid.size
-
-        return values

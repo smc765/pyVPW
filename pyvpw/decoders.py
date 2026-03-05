@@ -8,13 +8,11 @@ def aem30_0300(data: bytes):
 
 def rpm(data):
     '''PID $000C'''
-    n = data[0]
-    return n * 0.25
+    return int.from_bytes(data) * 0.25
 
 def ect_c(data):
     '''PID $0005'''
-    n = data[0]
-    return n - 40
+    return int.from_bytes(data) - 40
 
 def timing_deg(data):
     '''PID $000E'''
