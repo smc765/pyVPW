@@ -34,8 +34,7 @@ with open(LOGFILE, 'w') as f:
     writer.writeheader()
     print('logging started. press ctrl+c to stop')
     while True:
-        t = time.time()
-        row = {'time': t}
+        row = {'time': (t := time.time())}
         row.update(dl.get_row())
         writer.writerow(row)
         print(f'{1 / (time.time() - t):.2f} Rows/Second')

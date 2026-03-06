@@ -1,6 +1,5 @@
 from enum import IntEnum
 import re
-import math
 from .vpw import (
     VpwMessage,
     Priority,
@@ -120,7 +119,8 @@ class GmVehicle(Vehicle):
         '''mode $2A - request diagnostic data packet'''
         assert 1 <= len(dpids) <= 6
         assert all(d in range(0xFF) for d in dpids)
-        assert len(dpids) == (size := len(set(dpids)))
+        size = len(set(dpids))
+        assert len(dpids) == size
 
         dpids.extend([dpids[0] for _ in range(6 - len(dpids))]) # need 6 dpids
 
@@ -147,7 +147,6 @@ class GmVehicle(Vehicle):
 
     def unlock(self):
         '''mode $27 - security access mode'''
-
         seed_request = VpwMessage(
             Priority.physical0,
             PhysicalAddress.pcm,
@@ -183,7 +182,7 @@ class GmVehicle(Vehicle):
                 raise UnlockException(f'unknown response code: {response_code}')
 
     def read_block(self, block_id: int) -> bytes:
-        '''read data block'''
+        '''mode $3C - read data block'''
         request = VpwMessage(
             Priority.physical0,
             PhysicalAddress.pcm,
@@ -195,6 +194,7 @@ class GmVehicle(Vehicle):
         return response.data
     
     def write_block(self, block_id: int, data: bytes):
+        '''mode $3B - write data block'''
         request = VpwMessage(
             Priority.physical0,
             PhysicalAddress.pcm,

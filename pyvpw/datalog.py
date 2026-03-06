@@ -35,6 +35,7 @@ class Pid:
         return self.name
 
 class Dpid:
+    '''diagnostic data packet'''
     def __init__(self, dpid: int):
         assert dpid in range(0xFF)
         self.id = dpid
@@ -86,9 +87,9 @@ class DpidLogger:
         self._vehicle = vehicle
         self.pids = []
         self._dpids = []
-        self._avaliable_dpids = list(range(DPID_MIN, DPID_MAX+1))
+        self._avaliable_dpids = [Dpid(i) for i in range(DPID_MIN, DPID_MAX+1)]
 
-    def add_pid(self, pid):
+    def add_pid(self, pid: Pid):
         assert pid not in self.pids
         
         for dpid in self._dpids:
@@ -98,11 +99,14 @@ class DpidLogger:
                 self.pids.append(pid)
                 return
         
-        dpid = Dpid(self._avaliable_dpids.pop())
+        dpid = self._avaliable_dpids.pop()
         self._vehicle.define_dpid(dpid.id, pid.id, pid.size, 1)
         dpid.pids.append(pid)
         self.pids.append(pid)
         self._dpids.append(dpid)
+
+    def remove_pid(self, pid: Pid):
+        raise NotImplementedError
 
     def get_row(self) -> dict[Pid, Any]:
         values = dict.fromkeys(self.pids)
