@@ -73,8 +73,6 @@ class Dpid:
         return DPID_MAX_BYTES - len(self)
 
     def unpack(self, data: bytes) -> dict[Pid, bytes]:
-        '''return dict of PIDs and values'''
-
         values = dict.fromkeys(self.pids)
         read_byte = 0
         for pid in values:

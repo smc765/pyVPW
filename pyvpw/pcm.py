@@ -1,8 +1,8 @@
 from enum import Enum, IntEnum, auto
 
 class PcmType(Enum):
-    p01 = auto(), (36, 20, 82, 1, 126, 56, 151, 42, 190, 56, 152, 212, 40)
-    p04 = auto(), (4, 107, 80, 2, 126, 80, 210, 76, 5, 253, 152, 24, 203)
+    p01 = auto()
+    p04 = auto()
 
     @property
     def seedkey_algorithm(self):

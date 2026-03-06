@@ -7,18 +7,17 @@ import time, csv
 import logging
 logging.basicConfig(
     level=logging.DEBUG,
-    handlers=[
-        logging.FileHandler('debug.log'),
-    ]
+    handlers=[logging.FileHandler('debug.log'),]
     )
 
 PORTNAME = 'COM10'
 LOGFILE = 'datalog.csv'
 PIDS = [
     # name, pid, size, decoder function     
-    Pid('ect', 0x0005, 1, decoders.ect_c), # coolant temp
-    Pid('rpm', 0x000C, 2, decoders.rpm),   # RPM
-    Pid('iat', 0x000F, 1, decoders.ect_c), # intake air temp
+    Pid('ect', 0x0005, 1, decoders.ect_c),          # coolant temp
+    Pid('rpm', 0x000C, 2, decoders.rpm),            # RPM
+    Pid('iat', 0x000F, 1, decoders.ect_c),          # intake air temp
+    Pid('wideband', 0x114B, 1, decoders.aem30_0300) # wideband o2 (EGR sensor)
 ]
 
 elm = Elm327(PORTNAME)
@@ -35,6 +34,8 @@ with open(LOGFILE, 'w') as f:
     writer.writeheader()
     print('logging started. press ctrl+c to stop')
     while True:
-        row = {'time': time.time()}
+        t = time.time()
+        row = {'time': t}
         row.update(dl.get_row())
         writer.writerow(row)
+        print(f'{1 / (time.time() - t):.2f} Rows/Second')

@@ -46,22 +46,30 @@ class Vehicle:
         return supported
 
     def get_dtc(self) -> list[str]:
+        '''mode 0x03'''
         request = VpwMessage(
             Priority.functional0,
             FunctionalAddress.obd_request,
             PhysicalAddress.scantool,
             Mode.get_dtc
         )
-        # TODO
+        raise NotImplementedError
 
     def clear_dtc(self):
-        pass
+        '''mode $04'''
+        raise NotImplementedError
 
     def get_pending_dtc(self) -> list[str]:
-        pass
+        '''mode $07'''
+        raise NotImplementedError
 
     def get_freeze_frame(self):
-        pass
+        '''mode $02'''
+        raise NotImplementedError
+
+    def get_test_results(self):
+        '''mode $06'''
+        raise NotImplementedError
 
 class GmVehicle(Vehicle):
     '''SAE J2190 modes for General Motors J1850 VPW vehicles'''
@@ -112,7 +120,7 @@ class GmVehicle(Vehicle):
         '''mode $2A - request diagnostic data packet'''
         assert 1 <= len(dpids) <= 6
         assert all(d in range(0xFF) for d in dpids)
-        assert len(dpids) == len(set(dpids))
+        assert len(dpids) == (size := len(set(dpids)))
 
         dpids.extend([dpids[0] for _ in range(6 - len(dpids))]) # need 6 dpids
 
@@ -129,7 +137,7 @@ class GmVehicle(Vehicle):
             raise VehicleException('expected 6 responses')
 
         data = []
-        for response in responses[:len(set(dpids))]: # ignore duplicates
+        for response in responses[:size]: # ignore duplicates
             if response.mode == Mode.general_response:
                 raise VehicleException('request refused')
 
