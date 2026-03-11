@@ -68,8 +68,10 @@ class Dpid:
             raise NotImplementedError
 
     def __len__(self):
+        '''return length of response data in bytes'''
         return sum([pid.size for pid in self.pids])
-
+    
+    @property
     def bytes_free(self):
         return DPID_MAX_BYTES - len(self)
 
@@ -85,7 +87,7 @@ class Dpid:
 class DpidLogger:
     def __init__(self, vehicle):
         self._vehicle = vehicle
-        self.pids = []
+        self.pids = {}
         self._dpids = []
         self._avaliable_dpids = [Dpid(i) for i in range(DPID_MIN, DPID_MAX+1)]
 
@@ -93,20 +95,23 @@ class DpidLogger:
         assert pid not in self.pids
         
         for dpid in self._dpids:
-            if dpid.bytes_free() >= pid.size:
+            if dpid.bytes_free >= pid.size:
                 self._vehicle.define_dpid(dpid.id, pid.id, pid.size, len(dpid)+1)
                 dpid.pids.append(pid)
-                self.pids.append(pid)
+                self.pids.update({pid: dpid})
                 return
         
         dpid = self._avaliable_dpids.pop()
-        self._vehicle.define_dpid(dpid.id, pid.id, pid.size, 1)
+        self._vehicle.define_dpid(dpid.id, pid.id, pid.size, 1) # offset 1 is the first data byte
         dpid.pids.append(pid)
-        self.pids.append(pid)
+        self.pids.update({pid: dpid})
         self._dpids.append(dpid)
 
     def remove_pid(self, pid: Pid):
-        raise NotImplementedError
+        dpid = self.pids[pid]
+        self._vehicle.define_dpid(dpid.id, pid.id, 0, 0) # size=0 offset=0 removes pid
+        dpid.pids.remove(pid)
+        self.pids.pop(pid)
 
     def get_row(self) -> dict[Pid, Any]:
         values = dict.fromkeys(self.pids)

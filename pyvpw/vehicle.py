@@ -12,6 +12,9 @@ from .seedkey import seedkey
 from .exceptions import VehicleException, UnlockException
 from .pcm import PcmType, BlockId
 
+import logging
+logger = logging.getLogger(__name__)
+
 class Vehicle:
     '''SAE J1979 modes'''
 
@@ -76,8 +79,14 @@ class GmVehicle(Vehicle):
     def __init__(self, device, **kwargs):
         super().__init__(device)
         self.osid = self.get_osid()
-        self.pcm_type = kwargs.pop('pcm_type', PcmType.from_osid(self.osid))
+        self.pcm_type = kwargs.pop('pcm_type', None)
 
+        if self.pcm_type is None:
+            try:
+                self.pcm_type = PcmType.from_osid(self.osid)
+            except KeyError:
+                logger.warning(f'unknown OSID: {self.osid}')
+  
     def get_pid(self, pid: int) -> bytes:
         '''mode $22 - request PID'''
         assert pid in range(0xFFFF)
@@ -119,10 +128,11 @@ class GmVehicle(Vehicle):
         '''mode $2A - request diagnostic data packet'''
         assert 1 <= len(dpids) <= 6
         assert all(d in range(0xFF) for d in dpids)
-        size = len(set(dpids))
-        assert len(dpids) == size
 
-        dpids.extend([dpids[0] for _ in range(6 - len(dpids))]) # need 6 dpids
+        size = len(dpids)
+        assert size == len(set(dpids))
+
+        dpids.extend([dpids[0] for _ in range(6 - size)]) # need 6 dpids
 
         request = VpwMessage(
             Priority.physical0,
@@ -147,6 +157,8 @@ class GmVehicle(Vehicle):
 
     def unlock(self):
         '''mode $27 - security access mode'''
+        assert self.pcm_type is not None
+
         seed_request = VpwMessage(
             Priority.physical0,
             PhysicalAddress.pcm,

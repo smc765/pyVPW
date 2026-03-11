@@ -30,11 +30,12 @@ for pid in PIDS:
 with open(LOGFILE, 'w') as f:
     fieldnames = ['time'] + PIDS
     writer = csv.DictWriter(f, fieldnames=fieldnames)
-
     writer.writeheader()
+    t_start = time.time()
     print('logging started. press ctrl+c to stop')
     while True:
-        row = {'time': (t := time.time())}
+        t = time.time()
+        row = {'time': (t - t_start)}
         row.update(dl.get_row())
         writer.writerow(row)
-        print(f'{1 / (time.time() - t):.2f} Rows/Second')
+        # print(f'{1 / (time.time() - t):.2f} Rows/Second')

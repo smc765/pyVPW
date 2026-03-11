@@ -26,6 +26,3 @@ A Python module for SAE J1850-VPW communication with 1999-2003 General Motors PC
 - SAE J2178/1 - detailed header format and physical address assignments
 - [GM SeedKey Algorithm Paper](https://pcmhacking.net/forums/viewtopic.php?t=5876) - Reverse engineered PCM unlock algorithm
 - [ELM327 Datasheet](https://cdn.sparkfun.com/assets/learn_tutorials/8/3/ELM327DS.pdf)
-
-### Disclaimer
-This project is still in the early stage of development and has not been throughly tested on real vehicles.
