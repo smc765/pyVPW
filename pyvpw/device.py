@@ -14,16 +14,16 @@ class Device:
     def set_header(self, header: bytes):
         raise NotImplementedError('this is only implemented in derived classes')
 
-    def send_command(self, command: str) -> list[str]:
+    def send_command(self, command: str, num_lines: int | None) -> list[str]:
         raise NotImplementedError('this is only implemented in derived classes')
 
-    def send_message(self, message: VpwMessage) -> list[VpwMessage]:
+    def send_message(self, message: VpwMessage, num_lines=None) -> list[VpwMessage]:
         '''send VpwMessage and return responses'''
 
         if self._header != message.get_header():
             self.set_header(message.get_header())
 
-        response = self.send_command(repr(message))
+        response = self.send_command(repr(message), num_lines)
 
         data_frames = []
         for line in response:
@@ -50,15 +50,15 @@ class Device:
             except IndexError:
                 logger.warning(f'invalid frame: {frame.hex()}')
 
-            #TODO: validate checksum here, maybe check mode/submode too?
+            # TODO validate checksum here, maybe check mode/submode too?
             
             if response_message.mode != message.mode + 0x40:
-                logger.warning(f'unexpected response mode')
+                logger.warning('unexpected response mode')
 
             messages.append(response_message)
 
         if len(messages) == 0:
-            raise DeviceException('no valid data')
+            raise DeviceException('no valid data received')
 
         return messages
 
@@ -95,8 +95,15 @@ class Elm327(Device):
         
         self._header = None # current message header
 
-    def send_command(self, command: str) -> list[str]:
-        '''send command and wait for response'''
+    def send_command(self, command: str, num_lines=None) -> list[str]:
+        '''
+        send command and wait for response
+        num_lines should not be used to ignore messages
+        ignored messages remain in buffer and may be treated as responses to subsequent commands
+        '''
+
+        if num_lines:
+            command = command + str(num_lines)
         
         logger.debug(f'TX: {command}')
 
@@ -109,20 +116,20 @@ class Elm327(Device):
         if len(buffer) == 0:
             raise DeviceException('no data')
 
-        # remove prompt char
-        if buffer.endswith(ELM_PROMPT):
-            buffer = buffer[:-1]
-        else:
-            logger.warning('prompt char missing')
+        assert buffer.endswith(ELM_PROMPT)
+        buffer = buffer[:-1]
 
         # decode buffer, split lines, remove empty lines, remove whitespace 
         string = buffer.decode('ASCII')
-        lines = [line.strip() for line in string.split('\r') if bool(line)]
+        lines = [line.strip() for line in string.split('\r') if line]
 
         logger.debug(f'RX: {lines}')
 
         if '?' in lines:
             raise DeviceException('invalid message not sent')
+
+        if num_lines and (len(lines) != num_lines):
+            raise DeviceException(f'expected {num_lines} responses but received {len(lines)}')
 
         return lines
 

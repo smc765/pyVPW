@@ -107,6 +107,7 @@ class GmVehicle(Vehicle):
         '''mode $2C - define diagnostic data packet'''
         assert dpid in range(0xFF)
         assert pid in range(0xFFFF)
+        assert offset >= 1
 
         byte3 = 1 << 6 | offset << 3 | size # See SAE J2190 5.19
 
@@ -142,9 +143,7 @@ class GmVehicle(Vehicle):
             DataRate.single_response,
             dpids
         )
-        responses = self._device.send_message(request)
-        if len(responses) != 6:
-            raise VehicleException('expected 6 responses')
+        responses = self._device.send_message(request, 6) # can't query again until all 6 responses are received
 
         data = []
         for response in responses[:size]: # ignore duplicates
@@ -155,20 +154,21 @@ class GmVehicle(Vehicle):
 
         return data
 
-    def unlock(self):
+    def unlock(self, key=None):
         '''mode $27 - security access mode'''
-        assert self.pcm_type is not None
+        if key is None:
+            assert self.pcm_type is not None
 
-        seed_request = VpwMessage(
-            Priority.physical0,
-            PhysicalAddress.pcm,
-            PhysicalAddress.scantool,
-            Mode.unlock,
-            0x01
-        )
+            seed_request = VpwMessage(
+                Priority.physical0,
+                PhysicalAddress.pcm,
+                PhysicalAddress.scantool,
+                Mode.unlock,
+                0x01
+            )
 
-        seed_response = self._device.send_message(seed_request)[0]
-        key = seedkey(seed_response.data, self.pcm_type.seedkey_algorithm)
+            seed_response = self._device.send_message(seed_request)[0]
+            key = seedkey(seed_response.data, self.pcm_type.seedkey_algorithm)
 
         unlock_request = VpwMessage(
             Priority.physical0,
@@ -185,7 +185,7 @@ class GmVehicle(Vehicle):
             case 0x34:
                 return # key accepted
             case 0x35:
-                raise UnlockException('key not accepted')
+                raise UnlockException('key rejected')
             case 0x36:
                 raise UnlockException('too many unlock attempts')
             case 0x37:
