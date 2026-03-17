@@ -143,7 +143,8 @@ class GmVehicle(Vehicle):
             DataRate.single_response,
             dpids
         )
-        responses = self._device.send_message(request, 6) # can't query again until all 6 responses are received
+        # must receive all 6 responses before sending anything else
+        responses = self._device.send_message(request, 6)
 
         data = []
         for response in responses[:size]: # ignore duplicates
@@ -154,7 +155,7 @@ class GmVehicle(Vehicle):
 
         return data
 
-    def unlock(self, key=None):
+    def unlock(self, key: bytes | None = None):
         '''mode $27 - security access mode'''
         if key is None:
             assert self.pcm_type is not None

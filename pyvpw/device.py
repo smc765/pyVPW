@@ -14,10 +14,10 @@ class Device:
     def set_header(self, header: bytes):
         raise NotImplementedError('this is only implemented in derived classes')
 
-    def send_command(self, command: str, num_lines: int | None) -> list[str]:
+    def send_command(self, command: str, num_lines: int | None = None) -> list[str]:
         raise NotImplementedError('this is only implemented in derived classes')
 
-    def send_message(self, message: VpwMessage, num_lines=None) -> list[VpwMessage]:
+    def send_message(self, message: VpwMessage, num_lines: int | None = None) -> list[VpwMessage]:
         '''send VpwMessage and return responses'''
 
         if self._header != message.get_header():
@@ -70,7 +70,7 @@ class ElmProtocol(IntEnum):
 class Elm327(Device):
     '''handles serial communication with ELM327 scantools'''
 
-    def __init__(self, portname, **kwargs):
+    def __init__(self, portname: str, **kwargs):
         self._baudrate = kwargs.pop('baudrate', 115200)
         self._timeout = kwargs.pop('timeout', 1)
 
@@ -95,19 +95,20 @@ class Elm327(Device):
         
         self._header = None # current message header
 
-    def send_command(self, command: str, num_lines=None) -> list[str]:
+    def send_command(self, command: str, num_lines: int | None = None) -> list[str]:
         '''
-        send command and wait for response
+        send command and wait for response(s)
         num_lines should not be used to ignore messages
-        ignored messages remain in buffer and may be treated as responses to subsequent commands
+        ignored messages remain in elm buffer and may be treated as responses to subsequent commands
+        num_lines = None -> read unitl elm timeout
         '''
-
-        if num_lines:
-            command = command + str(num_lines)
-        
         logger.debug(f'TX: {command}')
 
-        command = command + '\r'
+        if num_lines:
+            command = command + str(num_lines) + '\r'
+        else:
+            command = command + '\r'
+
         self._port.write(command.encode('ASCII'))
 
         # read from serial port until ELM_PROMPT or timeout
@@ -126,7 +127,7 @@ class Elm327(Device):
         logger.debug(f'RX: {lines}')
 
         if '?' in lines:
-            raise DeviceException('invalid message not sent')
+            raise DeviceException('invalid message')
 
         if num_lines and (len(lines) != num_lines):
             raise DeviceException(f'expected {num_lines} responses but received {len(lines)}')

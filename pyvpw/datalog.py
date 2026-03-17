@@ -92,6 +92,7 @@ class DpidLogger:
         self._avaliable_dpids = [Dpid(i) for i in range(DPID_MIN, DPID_MAX+1)]
 
     def add_pid(self, pid: Pid):
+        '''add PID to data logger'''
         assert pid not in self.pids
         
         for dpid in self._dpids:
@@ -108,17 +109,21 @@ class DpidLogger:
         self._dpids.append(dpid)
 
     def remove_pid(self, pid: Pid):
+        '''remove PID from data logger'''
         dpid = self.pids[pid]
         self._vehicle.define_dpid(dpid.id, pid.id, 0, 0) # size=0 offset=0 removes pid
         dpid.pids.remove(pid)
         self.pids.pop(pid)
 
     def get_row(self) -> dict[Pid, Any]:
+        '''
+        query vehicle for all PIDs being logged
+        returns dict of PIDs and their corresponding decoded value
+        '''
         values = dict.fromkeys(self.pids)
-        dpid_groups = [self._dpids[i:i + 6] for i in range(0, len(self._dpids), 6)]
-        for dpid_group in dpid_groups:
-            responses = self._vehicle.get_dpids([dpid.id for dpid in dpid_group])
-            for i, data in enumerate(responses):
-                values.update(dpid_group[i].unpack(data))
+        for request_dpids in [self._dpids[i:i + 6] for i in range(0, len(self._dpids), 6)]: # request groups of <= 6 dpids
+            response = self._vehicle.get_dpids([dpid.id for dpid in request_dpids])
+            for i, data in enumerate(response): # one respose line per dpid
+                values.update(request_dpids[i].unpack(data))
 
         return {pid: pid.decoder(value) for pid, value in values.items()}
