@@ -5,3 +5,5 @@ __pycache__/
 *.log
 test.py
 *.csv
+dist/
+*.egg-info/

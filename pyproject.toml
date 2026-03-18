@@ -1,0 +1,21 @@
+[project]
+name = "pyvpw"
+version = "0.0.1"
+authors = [
+  { name="Sam Crouch", email="smc765@outlook.com" },
+]
+description = "A module for SAE J1850 VPW communication with General Motors vehicles"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+keywords = ["j1850", "vpw", "pcm", "obd", "obd2", "obdii", "obd-ii", "gm"]
+dependencies = ["pyserial==3.5"]
+license = "MIT"
+license-files = ["LICENSE"]
+
+[project.urls]
+Homepage = "https://github.com/smc765/pyVPW"
+Issues = "https://github.com/smc765/pyVPW/issues"
