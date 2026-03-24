@@ -2,6 +2,7 @@ import serial
 from enum import IntEnum
 from .vpw import VpwMessage
 from .exceptions import DeviceException
+from .utils import is_hex
 
 import logging
 logger = logging.getLogger(__name__)
@@ -10,6 +11,10 @@ ELM_PROMPT = b'>'
 
 class Device:
     '''scantool base class'''
+
+    def get_voltage(self) -> int:
+        '''battery voltage from obd2 port'''
+        raise NotImplementedError('this is only implemented in derived classes')
 
     def set_header(self, header: bytes):
         raise NotImplementedError('this is only implemented in derived classes')
@@ -97,14 +102,15 @@ class Elm327(Device):
 
     def send_command(self, command: str, num_lines: int | None = None) -> list[str]:
         '''
-        send command and wait for response(s)
-        num_lines should not be used to ignore messages
-        ignored messages remain in elm buffer and may be treated as responses to subsequent commands
-        num_lines = None -> read unitl elm timeout
+        send command and wait for responses
+        num_lines should not be used for AT commands or to ignore messages
+        ignored messages remain in buffer and may be treated as responses to subsequent commands
+        num_lines = None -> read until elm timeout
         '''
         logger.debug(f'TX: {command}')
 
         if num_lines:
+            assert is_hex(command)
             command = command + str(num_lines) + '\r'
         else:
             command = command + '\r'

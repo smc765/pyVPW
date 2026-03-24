@@ -1,18 +1,18 @@
-import argparse
-from pyvpw.device import Elm327
+from pyvpw import Elm327
 
-parser = argparse.ArgumentParser()
-parser.add_argument('portname')
-args = parser.parse_args()
+PORTNAME = 'COM10'
 
-tool = Elm327(args.portname)
+tool = Elm327(PORTNAME)
+tool.send_command('AT S1') # enable spaces
+print(tool.send_command('AT RV')[0])
 
 while True:
     command = input('>> ')
     try:
         response = tool.send_command(command)
-        for line in response:
-            print(f'>> {line}')
-
     except Exception as e:
         print(f'ERROR: {e}')
+        continue
+
+    for line in response:
+        print(line)

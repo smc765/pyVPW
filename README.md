@@ -6,8 +6,7 @@ A Python module for SAE J1850-VPW communication with 1999-2003 General Motors PC
 
 ## Basic Usage
 ```python
-from pyvpw.device import Elm327
-from pyvpw.vehicle import GmVehicle
+from pyvpw import Elm327, GmVehicle
 
 scantool = Elm327("COM10")         # connect to ELM327 on COM10 
 vehicle = GmVehicle(scantool)      # establish communicaton with vehicle
